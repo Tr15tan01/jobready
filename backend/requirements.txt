@@ -1,0 +1,49 @@
+# Versions verified as a mutually-compatible set with prebuilt wheels for
+# CPython 3.13 on Windows (no C++ compiler required). If you bump one of
+# these, re-run a full resolution check rather than upgrading in isolation:
+#   pip download --only-binary=:all: --python-version 313 \
+#       --platform win_amd64 --dest /tmp/check -r requirements.txt
+
+# --- Web framework ---
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+python-multipart==0.0.32
+
+# --- Data / validation ---
+pydantic==2.13.5
+pydantic-settings==2.15.0
+
+# --- Database ---
+sqlalchemy==2.0.54
+alembic==1.20.0
+asyncpg==0.31.0
+psycopg[binary]==3.3.6
+pgvector==0.5.0
+
+# --- Auth ---
+pyjwt==2.14.0
+bcrypt==5.0.0
+email-validator==2.3.0
+
+# --- Background jobs / cache / rate limiting ---
+redis==8.1.0
+celery==5.6.3
+slowapi==0.1.10
+
+# --- Observability ---
+sentry-sdk[fastapi]==2.69.2
+
+# --- Document parsing ---
+pypdf==6.19.0
+python-docx==1.2.0
+
+# --- AI provider ---
+google-genai==2.24.0
+
+# --- HTTP / utils ---
+httpx==0.28.1
+python-slugify==9.0.0
+
+# --- Testing ---
+pytest==9.1.1
+pytest-asyncio==1.4.0
