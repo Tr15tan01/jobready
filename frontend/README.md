@@ -48,6 +48,16 @@ language is persisted in a cookie (`jobready_locale`) and read server-side
 in `layout.tsx` / `page.tsx`. Add new keys to all three locale blocks in
 that file together so the languages never drift apart.
 
+## Security baseline
+
+Pinned to **Next.js 16.3.6** and **React 19.3.0**. Earlier Next 16.0.x and
+React 19.0.0 are affected by CVE-2025-66478 / CVE-2025-55182 ("React2Shell"),
+a CVSS 10.0 unauthenticated remote code execution flaw in React Server
+Components — and this app uses the App Router, so it is in scope.
+
+Do not downgrade below these versions. When upgrading, check the Next.js
+security advisories first, and run `npm audit --omit=dev` before deploying.
+
 ## Known non-blocking notices
 
 - Next.js 16 renamed the `middleware.ts` convention to `proxy.ts`; the app still works under the old name (just a build-time deprecation notice).

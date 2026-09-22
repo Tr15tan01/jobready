@@ -31,7 +31,7 @@ def get_email_provider() -> EmailProvider:
 
 
 async def send_verification_email(email: str, token: str) -> None:
-    link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+    link = f"{settings.frontend_url}/verify-email?token={token}"
     await get_email_provider().send(
         to=email, subject="Verify your JobReady email",
         body=f"Confirm your email address: {link}\n\nThis link expires in {settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS} hours.",
@@ -39,7 +39,7 @@ async def send_verification_email(email: str, token: str) -> None:
 
 
 async def send_password_reset_email(email: str, token: str) -> None:
-    link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    link = f"{settings.frontend_url}/reset-password?token={token}"
     await get_email_provider().send(
         to=email, subject="Reset your JobReady password",
         body=f"Reset your password: {link}\n\nThis link expires in {settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes. If you didn't request this, ignore this email.",

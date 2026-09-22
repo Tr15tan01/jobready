@@ -6,8 +6,8 @@ import { VoiceRecorder } from "@/components/voice-recorder";
 import { CameraCoach } from "@/components/camera-coach";
 import { AnswerModeSelector, type AnswerMode } from "@/components/ui/answer-mode-selector";
 import { LoadingButton, LoadingPanel } from "@/components/ui/spinner";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type Mode = { value: string; label: string };
 type Evaluation = {

@@ -1,4 +1,10 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/**
+ * Backend base URL, with any trailing slash removed. Every request path
+ * starts with "/api/...", so a copy-pasted "https://x.onrender.com/" would
+ * otherwise produce "https://x.onrender.com//api/..." — which FastAPI
+ * answers with 404 on every single call.
+ */
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").trim().replace(/\/+$/, "");
 
 /**
  * Header helper for authenticated calls. Components hold `accessToken`

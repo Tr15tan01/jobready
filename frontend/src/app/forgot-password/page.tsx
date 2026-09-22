@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");

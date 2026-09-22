@@ -62,7 +62,18 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+        # Trailing slashes are stripped on purpose. Browsers send the Origin
+        # header WITHOUT one ("https://app.vercel.app"), and CORSMiddleware
+        # matches exactly — so a copy-pasted "https://app.vercel.app/" would
+        # reject every preflight with a 400 and no Allow-Origin header, which
+        # the browser reports as an opaque CORS error.
+        return [o.strip().rstrip("/") for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def frontend_url(self) -> str:
+        """FRONTEND_URL without a trailing slash, so links built as
+        f"{frontend_url}/reset-password" never produce a double slash."""
+        return self.FRONTEND_URL.strip().rstrip("/")
 
     # ---- Gemini / AI models (never hard-code a model name elsewhere) ----
     # IMPORTANT: Google closes older models to NEW API keys before their

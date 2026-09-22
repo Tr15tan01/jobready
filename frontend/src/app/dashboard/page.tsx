@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { MetricCard, EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/spinner";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type ProgressSummary = {
   resume_match_pct: number | null;

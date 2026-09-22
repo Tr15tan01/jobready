@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { LoadingButton, LoadingPanel } from "@/components/ui/spinner";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type UsageFeature = { key: string; label: string; used: number; limit: number; remaining: number };
 type Usage = { plan: string; period: string; features: UsageFeature[] };

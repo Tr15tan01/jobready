@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { Briefcase, MapPin, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { LoadingButton, Skeleton } from "@/components/ui/spinner";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type Example = {
   id: string;

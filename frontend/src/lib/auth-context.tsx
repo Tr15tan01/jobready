@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 const ACCESS_TOKEN_KEY = "jr_access_token";
 const REFRESH_TOKEN_KEY = "jr_refresh_token";

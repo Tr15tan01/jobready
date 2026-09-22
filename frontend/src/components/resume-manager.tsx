@@ -6,8 +6,8 @@ import { getDictionary, Locale } from "@/lib/i18n/config";
 import { Upload, Sparkles } from "lucide-react";
 import { ResumeWizard } from "@/components/resume-wizard";
 import { LoadingPanel, Spinner } from "@/components/ui/spinner";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type ResumeVersion = {
   id: string;

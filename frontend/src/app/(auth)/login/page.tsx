@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { API_URL } from "@/lib/api-client";
 
 const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "1";
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export default function LoginPage() {
   const router = useRouter();

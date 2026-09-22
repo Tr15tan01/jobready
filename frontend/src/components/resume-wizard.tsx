@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Plus, Trash2, Check, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { LoadingButton } from "@/components/ui/spinner";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type Experience = {
   company: string;

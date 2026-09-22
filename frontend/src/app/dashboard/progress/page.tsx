@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { ProgressChart } from "@/components/progress-chart";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type ProgressSummary = {
   resume_match_pct: number | null;

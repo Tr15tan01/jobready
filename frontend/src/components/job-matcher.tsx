@@ -3,8 +3,8 @@
 import { useAuth } from "@/lib/auth-context";
 import { LoadingButton } from "@/components/ui/spinner";
 import { useCallback, useEffect, useState } from "react";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type Job = {
   id: string;

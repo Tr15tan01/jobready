@@ -4,8 +4,8 @@ import { useAuth } from "@/lib/auth-context";
 import { LoadingButton, LoadingPanel } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useCallback, useEffect, useState } from "react";
+import { API_URL } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type Item = { id: string; day_number: number; title: string; description: string | null; is_complete: boolean };
 type Plan = { id: string; title: string; items: Item[] };

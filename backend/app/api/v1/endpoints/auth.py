@@ -247,7 +247,7 @@ async def google_callback(
 
     tokens = _issue_tokens(user)
     redirect = RedirectResponse(
-        url=f"{settings.FRONTEND_URL}/auth/callback"
+        url=f"{settings.frontend_url}/auth/callback"
             f"?access_token={tokens.access_token}&refresh_token={tokens.refresh_token}"
     )
     redirect.delete_cookie(OAUTH_STATE_COOKIE)
