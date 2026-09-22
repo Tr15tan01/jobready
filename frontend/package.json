@@ -9,9 +9,9 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "next": "16.0.0",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "lucide-react": "^0.454.0",
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.4",
@@ -28,6 +28,6 @@
     "postcss": "^8.4.47",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.12.0",
-    "eslint-config-next": "16.0.0"
+    "eslint-config-next": "16.3.6"
   }
 }
