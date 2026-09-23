@@ -133,25 +133,48 @@ class Settings(BaseSettings):
     RATE_LIMIT_AI: str = "20/minute"
 
     # ---- Plan limits (central config, NOT hard-coded in components) -----
-    # These are defaults; production should override via env or the
-    # `plan_limits` DB table so limits can change without a deploy.
-    FREE_RESUME_ANALYSES_MONTHLY: int = 3
-    FREE_JOB_MATCHES_MONTHLY: int = 3
-    FREE_INTERVIEW_SESSIONS_MONTHLY: int = 2
-    FREE_SPEECH_PRACTICE_MONTHLY: int = 3
+    # Chosen with the cost model in app/services/costs.py so that each paid
+    # plan's WORST-CASE monthly AI cost stays <= ~70% of net revenue, at
+    # Gemini's standard (post-Jan-2027) pricing. tests/test_plan_economics.py
+    # fails the build if a change here breaks that guarantee.
+    FREE_RESUME_ANALYSES_MONTHLY: int = 2
+    FREE_JOB_MATCHES_MONTHLY: int = 12
+    FREE_INTERVIEW_SESSIONS_MONTHLY: int = 6
+    FREE_SPEECH_PRACTICE_MONTHLY: int = 12
     FREE_RESUME_GENERATIONS_MONTHLY: int = 2
+    FREE_LEARNING_PLANS_MONTHLY: int = 3
 
-    PREMIUM_RESUME_ANALYSES_MONTHLY: int = 30
-    PREMIUM_JOB_MATCHES_MONTHLY: int = 30
-    PREMIUM_INTERVIEW_SESSIONS_MONTHLY: int = 20
-    PREMIUM_SPEECH_PRACTICE_MONTHLY: int = 30
-    PREMIUM_RESUME_GENERATIONS_MONTHLY: int = 20
+    PREMIUM_RESUME_ANALYSES_MONTHLY: int = 10
+    PREMIUM_JOB_MATCHES_MONTHLY: int = 25
+    PREMIUM_INTERVIEW_SESSIONS_MONTHLY: int = 12
+    PREMIUM_SPEECH_PRACTICE_MONTHLY: int = 22
+    PREMIUM_RESUME_GENERATIONS_MONTHLY: int = 8
+    PREMIUM_LEARNING_PLANS_MONTHLY: int = 15
 
-    PRO_RESUME_ANALYSES_MONTHLY: int = 500
-    PRO_JOB_MATCHES_MONTHLY: int = 500
-    PRO_INTERVIEW_SESSIONS_MONTHLY: int = 200
-    PRO_SPEECH_PRACTICE_MONTHLY: int = 500
-    PRO_RESUME_GENERATIONS_MONTHLY: int = 200
+    PRO_RESUME_ANALYSES_MONTHLY: int = 25
+    PRO_JOB_MATCHES_MONTHLY: int = 60
+    PRO_INTERVIEW_SESSIONS_MONTHLY: int = 25
+    PRO_SPEECH_PRACTICE_MONTHLY: int = 32
+    PRO_RESUME_GENERATIONS_MONTHLY: int = 20
+    PRO_LEARNING_PLANS_MONTHLY: int = 40
+
+    # ---- Per-session caps -------------------------------------------------
+    # Without these, a monthly SESSION limit bounds nothing: one session
+    # could run 50 questions. Each answer (and each "one more try") costs
+    # an evaluation, plus a transcription if spoken.
+    FREE_MAX_QUESTIONS_PER_SESSION: int = 5
+    FREE_MAX_EVALUATIONS_PER_SESSION: int = 6
+    FREE_MAX_SPEECH_ATTEMPTS: int = 3
+    PREMIUM_MAX_QUESTIONS_PER_SESSION: int = 8
+    PREMIUM_MAX_EVALUATIONS_PER_SESSION: int = 10
+    PREMIUM_MAX_SPEECH_ATTEMPTS: int = 5
+    PRO_MAX_QUESTIONS_PER_SESSION: int = 10
+    PRO_MAX_EVALUATIONS_PER_SESSION: int = 14
+    PRO_MAX_SPEECH_ATTEMPTS: int = 8
+
+    # Monthly price in USD, used by the plan-economics check.
+    PREMIUM_PRICE_USD: float = 19.0
+    PRO_PRICE_USD: float = 49.0
 
     # ---- Job match scoring weights (configurable, sum to 1.0) -----------
     MATCH_WEIGHT_REQUIRED_REQUIREMENTS: float = 0.30

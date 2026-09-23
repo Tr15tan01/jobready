@@ -1,8 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Mic, Square, X } from "lucide-react";
 import { API_URL } from "@/lib/api-client";
+import { GradientSpinner } from "@/components/ui/spinner";
 
+export type RecorderPhase = "idle" | "recording" | "transcribing";
 
 type VoiceResult = {
   answer_id: string;
@@ -11,37 +14,57 @@ type VoiceResult = {
   filler_word_count: number | null;
 };
 
+function formatTime(s: number) {
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 /**
- * Records audio entirely in memory (a MediaRecorder Blob held in a React
- * ref, never written to disk) and uploads it once, on stop, directly to
- * the transcription endpoint. The blob is discarded immediately after
- * the fetch call resolves — this component never accumulates a video/
- * audio history (section 15/16/31).
+ * Records audio in memory and uploads once on stop. Reports its phase to
+ * the parent, which uses it to switch the camera off the instant
+ * recording ends — not after transcription finishes.
  */
 export function VoiceRecorder({
   sessionId,
   questionId,
   token,
   onResult,
+  onPhaseChange,
 }: {
   sessionId: string;
   questionId: string;
   token: string | null;
   onResult: (result: VoiceResult) => void;
+  onPhaseChange?: (phase: RecorderPhase) => void;
 }) {
-  const [recording, setRecording] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [phase, setPhaseState] = useState<RecorderPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const startTimeRef = useRef<number>(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const startRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Set by Cancel so the stop handler discards instead of uploading.
+  const cancelledRef = useRef(false);
 
-  async function startRecording() {
+  function setPhase(p: RecorderPhase) {
+    setPhaseState(p);
+    onPhaseChange?.(p);
+  }
+
+  function releaseMic() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (timerRef.current) clearInterval(timerRef.current);
+  }
+
+  // Never leave the microphone open if the component unmounts mid-recording.
+  useEffect(() => () => releaseMic(), []);
+
+  async function start() {
     setError(null);
+    cancelledRef.current = false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -51,77 +74,126 @@ export function VoiceRecorder({
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       recorder.onstop = handleStop;
-      mediaRecorderRef.current = recorder;
-      startTimeRef.current = Date.now();
+      recorderRef.current = recorder;
+      startRef.current = Date.now();
       recorder.start();
-      setRecording(true);
       setSeconds(0);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+      setPhase("recording");
     } catch {
-      setError("Microphone access denied or unavailable.");
+      setError("Microphone access was blocked. Allow it in your browser settings, then try again.");
     }
   }
 
-  function stopRecording() {
-    mediaRecorderRef.current?.stop();
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    if (timerRef.current) clearInterval(timerRef.current);
-    setRecording(false);
+  function stop() {
+    recorderRef.current?.stop();
+    releaseMic();
+  }
+
+  function cancel() {
+    cancelledRef.current = true;
+    recorderRef.current?.stop();
+    releaseMic();
   }
 
   async function handleStop() {
     const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-    chunksRef.current = []; // release references immediately
-    const durationSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
+    chunksRef.current = [];
 
-    setUploading(true);
+    if (cancelledRef.current) {
+      // Discarded locally — nothing leaves the browser.
+      setPhase("idle");
+      return;
+    }
+
+    setPhase("transcribing");
+    const duration = Math.round((Date.now() - startRef.current) / 1000);
     const form = new FormData();
     form.append("audio", blob, "answer.webm");
 
-    const res = await fetch(
-      `${API_URL}/api/v1/interviews/${sessionId}/answers/voice` +
-        `?question_id=${questionId}&duration_seconds=${durationSeconds}`,
-      {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: form,
+    try {
+      const res = await fetch(
+        `${API_URL}/api/v1/interviews/${sessionId}/answers/voice?question_id=${questionId}&duration_seconds=${duration}`,
+        { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.detail ?? "We couldn't transcribe that. Please try again.");
+        setPhase("idle");
+        return;
       }
-    );
-    setUploading(false);
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setError(body.detail ?? "Could not transcribe your answer.");
-      return;
+      onResult(await res.json());
+    } catch {
+      setError("Couldn't reach the server. Check your connection and try again.");
+      setPhase("idle");
     }
-    onResult(await res.json());
+  }
+
+  if (phase === "transcribing") {
+    return (
+      <div role="status" aria-live="polite" className="animate-fade-in flex flex-col items-center gap-3 py-8 text-center">
+        <GradientSpinner size={48} />
+        <p className="font-medium text-slate-900 dark:text-slate-100">Transcribing your answer...</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Camera and microphone are off. Your audio is discarded after transcription.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="rounded-xl border border-slate-100 p-4">
-      <div className="flex items-center gap-3">
-        {!recording ? (
-          <button
-            onClick={startRecording}
-            disabled={uploading}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-          >
-            {uploading ? "Transcribing..." : "Start recording"}
-          </button>
+    <div className="flex flex-col items-center gap-4 py-4">
+      {phase === "idle" ? (
+        <button
+          type="button"
+          onClick={start}
+          aria-label="Start recording"
+          className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/30 transition hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 motion-reduce:transition-none"
+        >
+          <Mic size={34} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={stop}
+          aria-label="Stop recording and submit"
+          className="relative flex h-20 w-20 items-center justify-center rounded-full bg-rose-600 text-white shadow-lg shadow-rose-600/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
+        >
+          <span className="absolute inset-0 animate-ping rounded-full bg-rose-500 opacity-30 motion-reduce:animate-none" />
+          <Square size={28} fill="currentColor" className="relative" />
+        </button>
+      )}
+
+      <div className="text-center">
+        {phase === "idle" ? (
+          <p className="font-medium text-slate-900 dark:text-slate-100">Tap to start recording</p>
         ) : (
-          <button
-            onClick={stopRecording}
-            className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-          >
-            <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-            Stop ({seconds}s)
-          </button>
+          <>
+            <p className="flex items-center justify-center gap-2 font-mono text-lg font-semibold text-rose-600">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-rose-600 motion-reduce:animate-none" />
+              {formatTime(seconds)}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Tap the square when you&apos;re finished</p>
+          </>
         )}
-        <p className="text-xs text-slate-400">
-          Audio is transcribed and discarded immediately — never stored.
-        </p>
       </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
+      {phase === "recording" && (
+        <button
+          type="button"
+          onClick={cancel}
+          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <X size={15} /> Cancel and discard
+        </button>
+      )}
+
+      {error && (
+        <p className="max-w-sm rounded-lg bg-red-50 p-3 text-center text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
+          {error}{" "}
+          <a href="/help/permissions" className="font-medium underline">How to allow access</a>
+        </p>
+      )}
     </div>
   );
 }

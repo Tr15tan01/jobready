@@ -14,6 +14,9 @@ from app.core.config import settings
 
 
 class SpeechProvider(ABC):
+    # (input_tokens, output_tokens) of the most recent call, for cost logging.
+    last_usage: tuple[int, int] = (0, 0)
+
     @abstractmethod
     async def transcribe(self, audio_bytes: bytes, mime_type: str, locale: str) -> str: ...
 
@@ -24,6 +27,8 @@ class GeminiSpeechProvider(SpeechProvider):
         from google.genai import types
 
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        from app.services.ai.gemini_client import _thinking_config
+
         response = client.models.generate_content(
             model=settings.SPEECH_MODEL,
             contents=[
@@ -31,7 +36,15 @@ class GeminiSpeechProvider(SpeechProvider):
                 f"(expected: {locale}). Return only the transcript text, nothing else.",
                 types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
             ],
+            # Transcription needs no reasoning; default effort was burning
+            # (billed) thinking tokens on every spoken answer.
+            config={"thinking_config": _thinking_config(settings.SPEECH_MODEL, "low")},
         )
+        usage = getattr(response, "usage_metadata", None)
+        self.last_usage = (
+            getattr(usage, "prompt_token_count", 0) or 0,
+            (getattr(usage, "candidates_token_count", 0) or 0) + (getattr(usage, "thoughts_token_count", 0) or 0),
+        ) if usage else (0, 0)
         return (response.text or "").strip()
 
 

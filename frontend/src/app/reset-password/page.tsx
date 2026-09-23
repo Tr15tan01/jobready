@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { API_URL } from "@/lib/api-client";
+import { LoadingButton } from "@/components/ui/spinner";
 
 
 function ResetPasswordInner() {
@@ -54,13 +55,9 @@ function ResetPasswordInner() {
         className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={loading}
-        className="mt-2 rounded-lg bg-slate-900 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-900"
-      >
-        {loading ? "Saving..." : "Set new password"}
-      </button>
+      <LoadingButton type="submit" loading={loading} loadingText="Saving..." className="mt-2 w-full">
+          Set new password
+        </LoadingButton>
     </form>
   );
 }

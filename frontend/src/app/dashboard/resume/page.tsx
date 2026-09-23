@@ -1,11 +1,8 @@
-import { cookies } from "next/headers";
-import { LOCALE_COOKIE, defaultLocale, getDictionary, isLocale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/config";
 import { ResumeManager } from "@/components/resume-manager";
 
-export default async function ResumePage() {
-  const cookieStore = await cookies();
-  const cookieLocale = cookieStore.get(LOCALE_COOKIE)?.value;
-  const locale = isLocale(cookieLocale) ? cookieLocale : defaultLocale;
+export default function ResumePage() {
+  const locale = "en" as const;
   const t = getDictionary(locale);
 
   return (

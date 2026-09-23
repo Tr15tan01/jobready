@@ -13,7 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models.user import UsageRecord, User
 from app.services.auth.jwt import get_current_user
-from app.services.usage import _LIMITS
+from app.core.config import settings
+from app.services.usage import _LIMITS, session_caps
 
 router = APIRouter()
 
@@ -23,45 +24,60 @@ FEATURE_LABELS = {
     "interview_session": "Interview sessions",
     "speech_practice": "Speech practice sessions",
     "resume_generation": "AI resume generations",
+    "learning_plan": "Learning plans",
 }
 
-PLAN_DESCRIPTIONS = {
-    "free": {
-        "name": "Free",
-        "price": "$0",
-        "tagline": "Get a feel for how JobReady works.",
-        "features": [
-            "Resume parsing and structured extraction",
-            "Transparent job match scoring",
-            "Text and voice interview practice",
-            "Speech metrics (pace, filler words)",
-            "Basic answer feedback",
-        ],
-    },
-    "premium": {
-        "name": "Premium",
-        "price": "$19/mo",
-        "tagline": "For an active job search.",
-        "features": [
-            "Everything in Free, with 10x the monthly usage",
-            "Resume tailoring against a specific job",
-            "Advanced answer evaluation",
-            "Personalised learning plans",
-            "Progress tracking across sessions",
-        ],
-    },
-    "pro": {
-        "name": "Pro",
-        "price": "$49/mo",
-        "tagline": "For intensive preparation and coaching.",
-        "features": [
-            "Everything in Premium, with very high limits",
-            "Video coaching with on-device analysis",
-            "Detailed analytics and weakness tracking",
-            "Priority access to new coaching features",
-        ],
-    },
-}
+def _plan_descriptions() -> dict:
+    """Built from the live config so the listed numbers can never drift
+    from what's enforced. Lists only differences that actually exist in
+    code — e.g. video answers work on every plan, so video isn't sold as
+    a paid-only feature."""
+    def caps(plan):
+        return session_caps(plan)
+
+    def L(plan):
+        return _LIMITS[plan]
+
+    shared = [
+        "Text, voice and video answers",
+        "Score and written feedback on every answer",
+        "Transparent job-match scoring",
+        "Video analysed on your device — never uploaded",
+    ]
+    return {
+        "free": {
+            "name": "Free", "price": "$0", "tagline": "Everything you need to start practising.",
+            "features": [
+                f"{L('free')['interview_session']} interviews a month, up to {caps('free')['max_questions']} questions each",
+                f"{L('free')['speech_practice']} speech sessions a month, {caps('free')['max_speech_attempts']} attempts each",
+                f"{L('free')['job_match']} job matches · {L('free')['resume_analysis']} resume analyses · {L('free')['resume_generation']} AI-built resumes",
+                *shared,
+                "Delivery summary: face in frame and speaking pace",
+            ],
+        },
+        "premium": {
+            "name": "Premium", "price": f"${settings.PREMIUM_PRICE_USD:g}/mo", "tagline": "For an active job search.",
+            "features": [
+                f"{L('premium')['interview_session']} interviews a month, up to {caps('premium')['max_questions']} questions each",
+                f"{L('premium')['speech_practice']} speech sessions a month, {caps('premium')['max_speech_attempts']} attempts each",
+                f"{L('premium')['job_match']} job matches · {L('premium')['resume_analysis']} resume analyses · {L('premium')['resume_generation']} AI-built resumes",
+                f"{L('premium')['learning_plan']} personalised learning plans a month",
+                "Full delivery analysis: eye contact, head movement, filler words and observations",
+                "Longer sessions with more retries per question",
+            ],
+        },
+        "pro": {
+            "name": "Pro", "price": f"${settings.PRO_PRICE_USD:g}/mo", "tagline": "For intensive preparation.",
+            "features": [
+                f"{L('pro')['interview_session']} interviews a month, up to {caps('pro')['max_questions']} questions each",
+                f"{L('pro')['speech_practice']} speech sessions a month, {caps('pro')['max_speech_attempts']} attempts each",
+                f"{L('pro')['job_match']} job matches · {L('pro')['resume_analysis']} resume analyses · {L('pro')['resume_generation']} AI-built resumes",
+                f"{L('pro')['learning_plan']} personalised learning plans a month",
+                "Full delivery analysis: eye contact, head movement, filler words and observations",
+                "Our longest sessions and most retries per question",
+            ],
+        },
+    }
 
 
 def _current_period() -> date:
@@ -109,8 +125,9 @@ async def get_plans() -> dict:
     return {
         "plans": [
             {
-                **PLAN_DESCRIPTIONS[plan_key],
+                **_plan_descriptions()[plan_key],
                 "key": plan_key,
+                "session_caps": session_caps(plan_key),
                 "limits": [
                     {"key": f, "label": FEATURE_LABELS.get(f, f), "limit": lim}
                     for f, lim in _LIMITS[plan_key].items()

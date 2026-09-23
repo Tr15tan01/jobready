@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { API_URL } from "@/lib/api-client";
+import { LoadingButton } from "@/components/ui/spinner";
 
 const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "1";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const callbackUrl = params.get("callbackUrl") ?? "/dashboard";
@@ -76,18 +77,25 @@ export default function LoginPage() {
             Forgot password?
           </a>
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-2 rounded-lg bg-slate-900 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-900"
-        >
-          {loading ? "Logging in..." : "Log in"}
-        </button>
+        <LoadingButton type="submit" loading={loading} loadingText="Logging in..." className="mt-2 w-full">
+          Log in
+        </LoadingButton>
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
         No account? <a href="/register" className="font-medium text-slate-900 dark:text-slate-100">Sign up</a>
       </p>
     </main>
+  );
+}
+
+
+// useSearchParams() needs a Suspense boundary so the rest of the page can be
+// statically prerendered; without one, `next build` fails on this route.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

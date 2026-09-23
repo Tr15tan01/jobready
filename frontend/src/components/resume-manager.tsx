@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { getDictionary, Locale } from "@/lib/i18n/config";
 import { Upload, Sparkles } from "lucide-react";
 import { ResumeWizard } from "@/components/resume-wizard";
+import { ResumeView } from "@/components/resume-view";
+import { Eye } from "lucide-react";
 import { LoadingPanel, Spinner } from "@/components/ui/spinner";
 import { API_URL } from "@/lib/api-client";
 
@@ -40,6 +42,7 @@ export function ResumeManager({ locale }: { locale: Locale }) {
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<{ resumeId: string; versionId: string; text: string } | null>(null);
   const [showWizard, setShowWizard] = useState(false);
+  const [viewing, setViewing] = useState<ResumeVersion | null>(null);
 
   const authHeaders = useCallback(
     (extra: Record<string, string> = {}) => ({
@@ -134,6 +137,10 @@ export function ResumeManager({ locale }: { locale: Locale }) {
 
   if (loading) return <LoadingPanel label="Loading your resumes..." />;
 
+  if (viewing) {
+    return <ResumeView content={viewing.content} onClose={() => setViewing(null)} />;
+  }
+
   if (showWizard) {
     return (
       <ResumeWizard
@@ -203,7 +210,15 @@ export function ResumeManager({ locale }: { locale: Locale }) {
                     <span className="text-xs font-medium text-emerald-600">{t.primary}</span>
                   )}
                 </div>
-                <div className="flex gap-2 text-xs">
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {primaryVersion && (
+                    <button
+                      onClick={() => setViewing(primaryVersion)}
+                      className="flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 font-medium text-white hover:bg-indigo-700"
+                    >
+                      <Eye size={13} /> View resume
+                    </button>
+                  )}
                   {!resume.is_primary && (
                     <button
                       onClick={() => handleMakePrimary(resume.id)}

@@ -15,28 +15,31 @@ from app.models.progress import AIRequest  # noqa: F401  (kept for future cost-a
 from app.models.user import UsageRecord
 
 _LIMITS = {
-    "free": {
-        "resume_analysis": settings.FREE_RESUME_ANALYSES_MONTHLY,
-        "job_match": settings.FREE_JOB_MATCHES_MONTHLY,
-        "interview_session": settings.FREE_INTERVIEW_SESSIONS_MONTHLY,
-        "speech_practice": settings.FREE_SPEECH_PRACTICE_MONTHLY,
-        "resume_generation": settings.FREE_RESUME_GENERATIONS_MONTHLY,
-    },
-    "premium": {
-        "resume_analysis": settings.PREMIUM_RESUME_ANALYSES_MONTHLY,
-        "job_match": settings.PREMIUM_JOB_MATCHES_MONTHLY,
-        "interview_session": settings.PREMIUM_INTERVIEW_SESSIONS_MONTHLY,
-        "speech_practice": settings.PREMIUM_SPEECH_PRACTICE_MONTHLY,
-        "resume_generation": settings.PREMIUM_RESUME_GENERATIONS_MONTHLY,
-    },
-    "pro": {
-        "resume_analysis": settings.PRO_RESUME_ANALYSES_MONTHLY,
-        "job_match": settings.PRO_JOB_MATCHES_MONTHLY,
-        "interview_session": settings.PRO_INTERVIEW_SESSIONS_MONTHLY,
-        "speech_practice": settings.PRO_SPEECH_PRACTICE_MONTHLY,
-        "resume_generation": settings.PRO_RESUME_GENERATIONS_MONTHLY,
-    },
+    plan: {
+        "resume_analysis": getattr(settings, f"{key}_RESUME_ANALYSES_MONTHLY"),
+        "job_match": getattr(settings, f"{key}_JOB_MATCHES_MONTHLY"),
+        "interview_session": getattr(settings, f"{key}_INTERVIEW_SESSIONS_MONTHLY"),
+        "speech_practice": getattr(settings, f"{key}_SPEECH_PRACTICE_MONTHLY"),
+        "resume_generation": getattr(settings, f"{key}_RESUME_GENERATIONS_MONTHLY"),
+        "learning_plan": getattr(settings, f"{key}_LEARNING_PLANS_MONTHLY"),
+    }
+    for plan, key in (("free", "FREE"), ("premium", "PREMIUM"), ("pro", "PRO"))
 }
+
+# Per-session caps (see config). These are what actually bound cost: a
+# monthly session limit alone doesn't, since one session could be endless.
+SESSION_CAPS = {
+    plan: {
+        "max_questions": getattr(settings, f"{key}_MAX_QUESTIONS_PER_SESSION"),
+        "max_evaluations": getattr(settings, f"{key}_MAX_EVALUATIONS_PER_SESSION"),
+        "max_speech_attempts": getattr(settings, f"{key}_MAX_SPEECH_ATTEMPTS"),
+    }
+    for plan, key in (("free", "FREE"), ("premium", "PREMIUM"), ("pro", "PRO"))
+}
+
+
+def session_caps(plan: str) -> dict:
+    return SESSION_CAPS.get(plan, SESSION_CAPS["free"])
 
 
 def _current_period() -> date:

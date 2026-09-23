@@ -1,70 +1,122 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { API_URL } from "@/lib/api-client";
+import { ShieldCheck, VideoOff } from "lucide-react";
+import { GradientSpinner } from "@/components/ui/spinner";
 
 const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.17/wasm";
 
-// Rough threshold: how far the estimated head yaw (radians) can be from
-// "facing the camera" before we count the sample as looking away. This
-// is a coarse, camera-angle-dependent heuristic — coaching signal only,
-// never presented as a precise or psychological measurement.
+// Coarse heuristics — directional coaching signals only, never presented
+// as precise or psychological measurements.
 const EYE_CONTACT_YAW_THRESHOLD = 0.35;
 const HEAD_MOVEMENT_JITTER_THRESHOLD = 0.06;
 
+export type VisualMetrics = {
+  face_visible_pct: number;
+  eye_contact_pct: number;
+  head_movement_score: number;
+  posture_notes: string[];
+};
+
 type Sample = { faceVisible: boolean; yaw: number; noseX: number; noseY: number };
 
+function summarise(samples: Sample[]): VisualMetrics | null {
+  if (samples.length === 0) return null;
+  const visible = samples.filter((s) => s.faceVisible);
+  const facePct = Math.round((visible.length / samples.length) * 100);
+  const looking = visible.filter((s) => Math.abs(s.yaw) < EYE_CONTACT_YAW_THRESHOLD);
+  const eyePct = visible.length ? Math.round((looking.length / visible.length) * 100) : 0;
+
+  let jitter = 0;
+  for (let i = 1; i < visible.length; i++) {
+    jitter += Math.hypot(visible[i].noseX - visible[i - 1].noseX, visible[i].noseY - visible[i - 1].noseY);
+  }
+  const avg = visible.length > 1 ? jitter / (visible.length - 1) : 0;
+  const movement = Math.min(100, Math.round((avg / HEAD_MOVEMENT_JITTER_THRESHOLD) * 100));
+
+  // Observable-behaviour language only.
+  const notes: string[] = [];
+  if (facePct < 70) notes.push("Your face left the frame for parts of this answer.");
+  if (eyePct < 50) notes.push("Your gaze moved away from the camera frequently.");
+  if (movement > 70) notes.push("There was a lot of head movement during this answer.");
+  return { face_visible_pct: facePct, eye_contact_pct: eyePct, head_movement_score: movement, posture_notes: notes };
+}
+
 /**
- * Loads MediaPipe only when this component actually mounts (i.e. only
- * once the candidate enters a camera-enabled session) — never on initial
- * page load, per the performance requirement to not load heavy vision
- * libraries until needed. All frame processing happens in the browser;
- * no frame or video is ever sent anywhere. Only the aggregated numbers
- * computed in `stopAndSubmit` leave this component.
+ * On-device visual coaching. Everything runs in the browser; no frame ever
+ * leaves it.
+ *
+ * `active` is the single switch. The moment it goes false, the camera and
+ * analysis loop stop immediately — before transcription, not after — and
+ * the summary is passed to `onMetrics`. The parent submits it once the
+ * answer has an id, since metrics can't be saved against an answer that
+ * doesn't exist yet.
  */
 export function CameraCoach({
-  sessionId,
-  answerId,
   active,
-  token,
-  onSubmitted,
+  onMetrics,
 }: {
-  sessionId: string;
-  answerId: string | null;
   active: boolean;
-  token: string | null;
-  onSubmitted?: () => void;
+  onMetrics: (metrics: VisualMetrics | null) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const landmarkerRef = useRef<import("@mediapipe/tasks-vision").FaceLandmarker | null>(null);
   const samplesRef = useRef<Sample[]>([]);
   const rafRef = useRef<number | null>(null);
+  const onMetricsRef = useRef(onMetrics);
+  onMetricsRef.current = onMetrics;
 
-  const [status, setStatus] = useState<"idle" | "loading" | "running" | "error">("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<"loading" | "running" | "error">("loading");
 
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
+    samplesRef.current = [];
+    setStatus("loading");
 
-    async function setup() {
-      setStatus("loading");
+    function loop() {
+      const video = videoRef.current;
+      const landmarker = landmarkerRef.current;
+      if (!video || !landmarker || cancelled) return;
+      // detectForVideo throws before the element has a decoded frame.
+      if (video.readyState < 2 || video.videoWidth === 0) {
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+      try {
+        const result = landmarker.detectForVideo(video, performance.now());
+        const face = result.faceLandmarks?.[0];
+        const matrix = result.facialTransformationMatrixes?.[0]?.data;
+        if (face && matrix) {
+          const yaw = Math.asin(Math.max(-1, Math.min(1, matrix[2])));
+          samplesRef.current.push({ faceVisible: true, yaw, noseX: face[1].x, noseY: face[1].y });
+        } else {
+          samplesRef.current.push({ faceVisible: false, yaw: 0, noseX: 0, noseY: 0 });
+        }
+      } catch {
+        // Drop a bad frame rather than ending the session.
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    }
+
+    (async () => {
       try {
         const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
-        const filesetResolver = await FilesetResolver.forVisionTasks(WASM_URL);
-        const landmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+        const fileset = await FilesetResolver.forVisionTasks(WASM_URL);
+        const landmarker = await FaceLandmarker.createFromOptions(fileset, {
           baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
           runningMode: "VIDEO",
           outputFacialTransformationMatrixes: true,
           numFaces: 1,
         });
-        if (cancelled) return;
+        if (cancelled) return landmarker.close();
         landmarkerRef.current = landmarker;
 
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 360 } });
+        if (cancelled) return stream.getTracks().forEach((t) => t.stop());
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -73,121 +125,50 @@ export function CameraCoach({
         setStatus("running");
         loop();
       } catch {
-        setError("Camera or vision model unavailable. Continuing without video coaching.");
         setStatus("error");
       }
-    }
+    })();
 
-    function loop() {
-      const video = videoRef.current;
-      const landmarker = landmarkerRef.current;
-      if (!video || !landmarker || cancelled) return;
-
-      // detectForVideo throws if the element has no decoded frame yet
-      // (readyState < HAVE_CURRENT_DATA) or has zero dimensions — which
-      // happens for the first few ticks after play() resolves, and again
-      // if the stream drops. Skip those frames instead of crashing.
-      if (video.readyState < 2 || video.videoWidth === 0) {
-        rafRef.current = requestAnimationFrame(loop);
-        return;
-      }
-
-      let result;
-      try {
-        result = landmarker.detectForVideo(video, performance.now());
-      } catch {
-        // A transient decode error shouldn't kill the whole session —
-        // drop this frame and keep going.
-        rafRef.current = requestAnimationFrame(loop);
-        return;
-      }
-      const face = result.faceLandmarks?.[0];
-      const matrix = result.facialTransformationMatrixes?.[0]?.data;
-
-      if (face && matrix) {
-        // Rough yaw estimate from the rotation matrix (index 2 ~ forward-x component).
-        const yaw = Math.asin(Math.max(-1, Math.min(1, matrix[2])));
-        const nose = face[1]; // approx nose tip landmark index
-        samplesRef.current.push({ faceVisible: true, yaw, noseX: nose.x, noseY: nose.y });
-      } else {
-        samplesRef.current.push({ faceVisible: false, yaw: 0, noseX: 0, noseY: 0 });
-      }
-
-      rafRef.current = requestAnimationFrame(loop);
-    }
-
-    setup();
+    // Runs when `active` flips to false (or on unmount): stop EVERYTHING
+    // now, then hand over the summary.
     return () => {
       cancelled = true;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      if (videoRef.current) videoRef.current.srcObject = null;
       landmarkerRef.current?.close();
+      landmarkerRef.current = null;
+      onMetricsRef.current(summarise(samplesRef.current));
+      samplesRef.current = [];
     };
   }, [active]);
-
-  async function stopAndSubmit() {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-
-    const samples = samplesRef.current;
-    samplesRef.current = []; // release immediately — aggregate is all we keep
-    if (samples.length === 0 || !answerId) return;
-
-    const visibleSamples = samples.filter((s) => s.faceVisible);
-    const facePct = Math.round((visibleSamples.length / samples.length) * 100);
-    const lookingAtCamera = visibleSamples.filter((s) => Math.abs(s.yaw) < EYE_CONTACT_YAW_THRESHOLD);
-    const eyeContactPct = visibleSamples.length
-      ? Math.round((lookingAtCamera.length / visibleSamples.length) * 100)
-      : 0;
-
-    // Movement = average frame-to-frame displacement of the nose point,
-    // normalized to a 0-100 scale. Higher = more movement, not "good" or
-    // "bad" on its own — surfaced as an observable pattern, not a verdict.
-    let totalJitter = 0;
-    for (let i = 1; i < visibleSamples.length; i++) {
-      const a = visibleSamples[i - 1];
-      const b = visibleSamples[i];
-      totalJitter += Math.hypot(b.noseX - a.noseX, b.noseY - a.noseY);
-    }
-    const avgJitter = visibleSamples.length > 1 ? totalJitter / (visibleSamples.length - 1) : 0;
-    const headMovementScore = Math.min(100, Math.round((avgJitter / HEAD_MOVEMENT_JITTER_THRESHOLD) * 100));
-
-    const notes: string[] = [];
-    if (facePct < 70) notes.push("Your face left the frame for parts of this answer.");
-    if (eyeContactPct < 50) notes.push("Your gaze moved away from the camera frequently.");
-    if (headMovementScore > 70) notes.push("There was a lot of head movement during this answer.");
-
-    await fetch(`${API_URL}/api/v1/interviews/${sessionId}/answers/${answerId}/visual-metrics`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({
-        face_visible_pct: facePct,
-        eye_contact_pct: eyeContactPct,
-        head_movement_score: headMovementScore,
-        posture_notes: notes,
-      }),
-    });
-    onSubmitted?.();
-  }
 
   if (!active) return null;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-100">
-      <video ref={videoRef} muted playsInline className="w-full -scale-x-100 bg-slate-900" />
-      <div className="flex items-center justify-between px-3 py-2 text-xs text-slate-500">
-        <span>
-          {status === "loading" && "Loading local video coaching..."}
-          {status === "running" && "Video coaching active — processed locally, never uploaded."}
-          {status === "error" && (error ?? "Video coaching unavailable.")}
-        </span>
-        <button onClick={stopAndSubmit} className="font-medium text-slate-700 underline">
-          Save visual feedback
-        </button>
+    <div className="animate-fade-in overflow-hidden rounded-2xl border border-violet-200 dark:border-violet-900">
+      <div className="relative aspect-video bg-slate-900">
+        <video ref={videoRef} muted playsInline className="h-full w-full -scale-x-100 object-cover" />
+        {status === "loading" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/80 text-sm text-slate-200">
+            <GradientSpinner size={40} />
+            Starting your camera...
+          </div>
+        )}
+        {status === "error" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-900 p-4 text-center text-sm text-slate-200">
+            <VideoOff size={28} />
+            Camera unavailable — you can still answer by voice.
+            <a href="/help/permissions" className="font-medium text-violet-300 underline">How to allow camera access</a>
+          </div>
+        )}
       </div>
+      <p className="flex items-center gap-2 bg-violet-50 px-3 py-2 text-xs text-violet-800 dark:bg-violet-950/50 dark:text-violet-200">
+        <ShieldCheck size={14} className="shrink-0" />
+        Analysed on your device. Video is never recorded or uploaded.{" "}
+        <a href="/help/video-privacy" className="font-medium underline">How it works</a>
+      </p>
     </div>
   );
 }

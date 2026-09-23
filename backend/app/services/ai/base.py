@@ -100,7 +100,7 @@ class GeminiAIService(AIService):
         prompt = build_extraction_prompt(raw_text, locale)
         result = await generate_structured(
             db, prompt=prompt, model=settings.GEMINI_MODEL_RESUME,
-            schema=StructuredResume, feature="resume_extraction", user_id=user_id, max_output_tokens=3000,
+            schema=StructuredResume, feature="resume_extraction", user_id=user_id, max_output_tokens=6000, thinking="low",
         )
         await set_cached(
             db, cache_key, feature="resume_extraction",
@@ -118,7 +118,7 @@ class GeminiAIService(AIService):
         prompt = build_job_extraction_prompt(raw_description, locale)
         result = await generate_structured(
             db, prompt=prompt, model=settings.GEMINI_MODEL_JOB_ANALYSIS,
-            schema=JobExtraction, feature="job_extraction", user_id=user_id, max_output_tokens=1500,
+            schema=JobExtraction, feature="job_extraction", user_id=user_id, max_output_tokens=4000, thinking="low",
         )
         await set_cached(
             db, cache_key, feature="job_extraction",
@@ -140,7 +140,7 @@ class GeminiAIService(AIService):
         prompt = build_match_evaluation_prompt(candidate, job_requirements, locale)
         result = await generate_structured(
             db, prompt=prompt, model=settings.GEMINI_MODEL_JOB_ANALYSIS,
-            schema=MatchEvaluation, feature="job_matching", user_id=user_id, max_output_tokens=1000,
+            schema=MatchEvaluation, feature="job_matching", user_id=user_id, max_output_tokens=4000, thinking="low",
         )
         await set_cached(
             db, cache_key, feature="job_matching",
@@ -163,7 +163,7 @@ class GeminiAIService(AIService):
         )
         return await generate_structured(
             db, prompt=prompt, model=settings.GEMINI_MODEL_INTERVIEW,
-            schema=GeneratedQuestion, feature="interview_question", user_id=user_id, max_output_tokens=300,
+            schema=GeneratedQuestion, feature="interview_question", user_id=user_id, max_output_tokens=3000, thinking="low",
         )
 
     async def evaluate_answer(
@@ -172,7 +172,7 @@ class GeminiAIService(AIService):
         prompt = build_evaluation_prompt(mode=mode, question=question, answer=answer, locale=locale)
         return await generate_structured(
             db, prompt=prompt, model=settings.GEMINI_MODEL_EVALUATION,
-            schema=AnswerEvaluationResult, feature="answer_evaluation", user_id=user_id, max_output_tokens=1200,
+            schema=AnswerEvaluationResult, feature="answer_evaluation", user_id=user_id, max_output_tokens=8000, thinking="medium",
         )
 
     async def generate_learning_plan(
@@ -187,7 +187,7 @@ class GeminiAIService(AIService):
         )
         return await generate_structured(
             db, prompt=prompt, model=settings.GEMINI_MODEL_DEFAULT,
-            schema=LearningPlanGeneration, feature="learning_plan", user_id=user_id, max_output_tokens=1500,
+            schema=LearningPlanGeneration, feature="learning_plan", user_id=user_id, max_output_tokens=6000, thinking="low",
         )
 
     async def generate_resume(
@@ -205,8 +205,7 @@ class GeminiAIService(AIService):
         prompt = build_generation_prompt(answers, locale)
         result = await generate_structured(
             db, prompt=prompt, model=settings.GEMINI_MODEL_RESUME,
-            schema=StructuredResume, feature="resume_generation", user_id=user_id,
-            max_output_tokens=3000,
+            schema=StructuredResume, feature="resume_generation", user_id=user_id, max_output_tokens=6000, thinking="low",
         )
         await set_cached(
             db, cache_key, feature="resume_generation",
@@ -232,7 +231,7 @@ class GeminiAIService(AIService):
         prompt = build_improve_prompt(section, section_content, job_requirements, locale)
         result = await generate_structured(
             db, prompt=prompt, model=settings.GEMINI_MODEL_FAST,
-            schema=ImproveSuggestion, feature="resume_suggestion", user_id=user_id, max_output_tokens=500,
+            schema=ImproveSuggestion, feature="resume_suggestion", user_id=user_id, max_output_tokens=3000, thinking="low",
         )
         await set_cached(
             db, cache_key, feature="resume_suggestion",
@@ -273,7 +272,20 @@ class MockAIService(AIService):
         self, db: AsyncSession, user_id: Optional[UUID], *, days: int, job_title: Optional[str],
         skill_gaps: list[str], recurring_weaknesses: list[str], locale: str,
     ) -> LearningPlanGeneration:
-        return LearningPlanGeneration(items=[])
+        # A complete, deterministic plan so AI_PROVIDER=mock is fully usable.
+        topics = [
+            ("Baseline mock interview", "mock_interview"),
+            ("Structure answers with STAR", "practice"),
+            ("Review your resume gaps", "reading"),
+            ("Behavioural practice round", "practice"),
+            ("Speaking pace and filler words", "practice"),
+            ("Domain deep-dive questions", "practice"),
+            ("Full interview simulation", "mock_interview"),
+        ]
+        return LearningPlanGeneration(items=[
+            {"day_number": i + 1, "title": title, "description": None, "item_type": kind}
+            for i, (title, kind) in enumerate((topics * 2)[:days])
+        ])
 
     async def generate_resume(
         self, db: AsyncSession, user_id: Optional[UUID], answers: dict, locale: str,

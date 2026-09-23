@@ -10,3 +10,13 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Printing a resume: show only the document, in light colours, even if
+   the app is in dark mode. */
+@media print {
+  html, body { background: #fff !important; }
+  body * { visibility: hidden; }
+  #resume-print, #resume-print * { visibility: visible; }
+  #resume-print { position: absolute; inset: 0 auto auto 0; width: 100%; color: #000; }
+  @page { margin: 16mm; }
+}

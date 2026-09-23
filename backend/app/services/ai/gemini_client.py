@@ -6,6 +6,7 @@ validation, and AIRequest logging for cost tracking (sections 25-27).
 No caller talks to `google.genai` directly.
 """
 import hashlib
+import logging
 import json
 import time
 from typing import Optional, Type, TypeVar
@@ -17,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.progress import AIRequest
+from app.services.costs import estimate_cost
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -29,13 +31,36 @@ def hash_input(*parts: str) -> str:
         h.update(b"\x00")
     return h.hexdigest()
 
-# Very rough per-1K-token USD estimates for cost tracking; override with
-# real provider pricing once finalized. Never blocks a request if unknown.
-_COST_PER_1K_INPUT = 0.000075
-_COST_PER_1K_OUTPUT = 0.0003
+# Costs come from app/services/costs.py (per-model, current pricing).
 
 
-async def _call_gemini_raw(prompt: str, model: str, max_output_tokens: int) -> tuple[str, int, int]:
+def _thinking_config(model: str, level: str) -> dict:
+    """Maps a thinking effort to whichever parameter this model family uses.
+
+    Why this matters (both for correctness and cost):
+    - On Gemini 3 models, max_output_tokens is a COMBINED budget for
+      thinking + visible output. At the default effort the model can spend
+      thousands of tokens reasoning, exhausting the budget before it writes
+      any JSON — which is exactly what produced truncated, empty responses.
+    - Thinking tokens are billed as output tokens. Structured extraction
+      and rewriting don't need deep reasoning, so "low" effort cuts cost
+      substantially without affecting result quality.
+
+    Gemini 3.x uses the string `thinking_level`; 2.5 uses a numeric
+    `thinking_budget`. Sending both in one request is an error.
+    """
+    if model.startswith("gemini-3"):
+        # "minimal" isn't supported on every 3.x model (not on 3.8 Flash),
+        # so "low" is the safe floor across the whole family.
+        return {"thinking_level": level}
+    if model.startswith("gemini-2.5"):
+        return {"thinking_budget": {"low": 512, "medium": 2048, "high": 8192}.get(level, 512)}
+    return {}
+
+
+async def _call_gemini_raw(
+    prompt: str, model: str, max_output_tokens: int, thinking: str = "low",
+) -> tuple[str, int, int]:
     """Returns (text, input_tokens, output_tokens). Isolated so it's the
     only function that needs the real SDK/API key."""
     from google import genai  # imported lazily so tests never require it
@@ -48,12 +73,14 @@ async def _call_gemini_raw(prompt: str, model: str, max_output_tokens: int) -> t
             contents=prompt,
             config={
                 "response_mime_type": "application/json",
-                # Hard ceiling on output — the expensive side of the bill.
-                # Without it a model can pad a JSON field indefinitely.
+                # Ceiling on thinking + output combined (see
+                # _thinking_config). A ceiling, not a cost: billing follows
+                # tokens actually used, so headroom here is free and only
+                # prevents truncation.
                 "max_output_tokens": max_output_tokens,
-                # Deterministic-leaning output: better cache hit rates on
-                # repeated inputs and less rambling.
-                "temperature": 0.3,
+                # No temperature: Google's guidance for Gemini 3.x is to
+                # leave sampling parameters at their defaults.
+                "thinking_config": _thinking_config(model, thinking),
             },
         )
     except genai_errors.ClientError as exc:
@@ -72,10 +99,25 @@ async def _call_gemini_raw(prompt: str, model: str, max_output_tokens: int) -> t
             ) from exc
         raise
 
+    finish = None
+    try:
+        finish = str(response.candidates[0].finish_reason) if response.candidates else None
+    except (AttributeError, IndexError):
+        pass
+    if finish and "MAX_TOKENS" in finish:
+        # Surfaced loudly: a silent truncation previously looked like a
+        # normal empty result and was papered over by fallbacks.
+        logging.getLogger("jobready.ai").warning(
+            "Gemini response truncated (MAX_TOKENS) model=%s budget=%d thinking=%s",
+            model, max_output_tokens, thinking,
+        )
+
     text = response.text or "{}"
     usage = getattr(response, "usage_metadata", None)
     input_tokens = getattr(usage, "prompt_token_count", 0) if usage else 0
     output_tokens = getattr(usage, "candidates_token_count", 0) if usage else 0
+    # Thinking tokens are billed as output but reported separately.
+    output_tokens += (getattr(usage, "thoughts_token_count", 0) or 0) if usage else 0
     return text, input_tokens, output_tokens
 
 
@@ -88,7 +130,8 @@ async def generate_structured(
     feature: str,
     user_id: Optional[UUID],
     cache_hit: bool = False,
-    max_output_tokens: int = 2048,
+    max_output_tokens: int = 4096,
+    thinking: str = "low",
 ) -> T:
     """Call Gemini, validate the JSON response against `schema`, retry once
     on failure, log an AIRequest row either way, and never raise on the
@@ -101,7 +144,7 @@ async def generate_structured(
 
     for attempt in range(2):
         try:
-            text, input_tokens, output_tokens = await _call_gemini_raw(prompt, model, max_output_tokens)
+            text, input_tokens, output_tokens = await _call_gemini_raw(prompt, model, max_output_tokens, thinking)
             data = json.loads(text)
             validated = schema.model_validate(data)
             await _log_request(
@@ -130,7 +173,7 @@ async def _log_request(
     db: AsyncSession, *, feature: str, model: str, user_id: Optional[UUID],
     input_tokens: int, output_tokens: int, latency_ms: int, status: str, cache_hit: bool,
 ) -> None:
-    cost = (input_tokens / 1000 * _COST_PER_1K_INPUT) + (output_tokens / 1000 * _COST_PER_1K_OUTPUT)
+    cost = estimate_cost(model, input_tokens, output_tokens)
     db.add(AIRequest(
         user_id=user_id, feature=feature, model=model,
         input_tokens=input_tokens, output_tokens=output_tokens,

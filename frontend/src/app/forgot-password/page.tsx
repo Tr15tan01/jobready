@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { API_URL } from "@/lib/api-client";
+import { LoadingButton } from "@/components/ui/spinner";
 
 
 export default function ForgotPasswordPage() {
@@ -44,13 +45,9 @@ export default function ForgotPasswordPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           />
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-2 rounded-lg bg-slate-900 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-900"
-          >
-            {loading ? "Sending..." : "Send reset link"}
-          </button>
+          <LoadingButton type="submit" loading={loading} loadingText="Sending..." className="mt-2 w-full">
+          Send reset link
+        </LoadingButton>
         </form>
       )}
 

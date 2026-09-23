@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { LoadingButton, LoadingPanel } from "@/components/ui/spinner";
+import { FONT_SIZES, type FontSize, loadFontSize, saveFontSize } from "@/lib/font-size";
 import { API_URL } from "@/lib/api-client";
 
 
@@ -18,11 +19,6 @@ type Plan = {
   limits: { key: string; label: string; limit: number }[];
 };
 
-const LOCALES = [
-  { value: "en", label: "English" },
-  { value: "ka", label: "ქართული" },
-  { value: "es", label: "Español" },
-];
 
 function UsageBar({ feature }: { feature: UsageFeature }) {
   const pct = feature.limit > 0 ? Math.min(100, (feature.used / feature.limit) * 100) : 0;
@@ -53,7 +49,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
 
   const [name, setName] = useState("");
-  const [locale, setLocale] = useState("en");
+  const [fontSize, setFontSize] = useState<FontSize>("default");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
 
@@ -71,10 +67,11 @@ export default function SettingsPage() {
     [token]
   );
 
+  useEffect(() => setFontSize(loadFontSize()), []);
+
   useEffect(() => {
     if (user) {
       setName(user.full_name ?? "");
-      setLocale(user.locale ?? "en");
     }
   }, [user]);
 
@@ -98,7 +95,8 @@ export default function SettingsPage() {
     const res = await fetch(`${API_URL}/api/v1/me`, {
       method: "PATCH",
       headers: headers(),
-      body: JSON.stringify({ full_name: name, locale }),
+      // The app is English-only for now, so AI feedback follows suit.
+      body: JSON.stringify({ full_name: name, locale: "en" }),
     });
     setSavingProfile(false);
     setProfileMsg(res.ok ? "Saved." : "Could not save your changes.");
@@ -199,25 +197,42 @@ export default function SettingsPage() {
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 />
               </div>
-              <div>
-                <label htmlFor="locale" className="mb-1 block text-xs text-slate-500 dark:text-slate-400">
-                  Language (also used for AI feedback)
-                </label>
-                <select
-                  id="locale"
-                  value={locale}
-                  onChange={(e) => setLocale(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                >
-                  {LOCALES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
-                </select>
-              </div>
               <div className="flex items-center gap-3">
                 <LoadingButton onClick={saveProfile} loading={savingProfile} loadingText="Saving...">
                   Save changes
                 </LoadingButton>
                 {profileMsg && <span className="text-sm text-slate-500 dark:text-slate-400">{profileMsg}</span>}
               </div>
+            </div>
+          </section>
+
+          {/* Display */}
+          <section className="rounded-xl border border-slate-100 p-6 dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="mb-1 font-medium text-slate-900 dark:text-slate-50">Display</h2>
+            <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+              Text size applies across the whole app and is saved on this device.
+            </p>
+            <div role="radiogroup" aria-label="Text size" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {FONT_SIZES.map((f) => {
+                const active = fontSize === f.value;
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => { setFontSize(f.value); saveFontSize(f.value); }}
+                    className={`flex flex-col items-center gap-1 rounded-xl border-2 px-3 py-3 transition motion-reduce:transition-none ${
+                      active
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+                        : "border-slate-200 text-slate-600 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    <span style={{ fontSize: `${f.px}px` }} className="font-semibold leading-none">Aa</span>
+                    <span className="text-xs">{f.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </section>
 

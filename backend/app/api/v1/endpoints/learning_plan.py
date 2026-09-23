@@ -13,6 +13,7 @@ from app.models.user import User
 from app.schemas.progress import GeneratePlanRequest, ItemUpdateRequest, LearningItemOut, LearningPlanOut
 from app.services.ai.base import get_ai_service
 from app.services.auth.jwt import get_current_user
+from app.services.usage import check_and_increment_usage
 
 router = APIRouter()
 
@@ -23,6 +24,9 @@ async def generate_plan(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LearningPlan:
+    plan_name = user.subscription.plan if user.subscription else "free"
+    await check_and_increment_usage(db, user.id, plan_name, "learning_plan")
+
     job_title = None
     skill_gaps: list[str] = []
     if payload.job_id:
@@ -50,6 +54,16 @@ async def generate_plan(
         skill_gaps=skill_gaps, recurring_weaknesses=recurring_weaknesses, locale=user.locale,
     )
 
+    # Fail honestly. This previously fell back to a single generic item,
+    # which hid real generation failures as a mysterious "1-day plan".
+    # Checked before touching existing plans, so a failed attempt never
+    # replaces a plan the user already had.
+    if len(generated.items) < max(1, payload.days // 2):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="We couldn't build a complete plan just now. Please try again in a moment.",
+        )
+
     # Only one active plan at a time.
     existing_active = (await db.execute(
         select(LearningPlan).where(LearningPlan.user_id == user.id, LearningPlan.is_active.is_(True))
@@ -65,20 +79,11 @@ async def generate_plan(
     db.add(plan)
     await db.flush()
 
-    if not generated.items:
-        # Graceful fallback (section 42) — a plan with zero AI items is
-        # still a usable, if generic, starting point rather than an error.
+    for item in generated.items:
         db.add(LearningItem(
-            plan_id=plan.id, day_number=1, title="Practice a mock interview",
-            description="Run a general practice session to establish a baseline.",
-            item_type="mock_interview",
+            plan_id=plan.id, day_number=item.day_number, title=item.title,
+            description=item.description, item_type=item.item_type,
         ))
-    else:
-        for item in generated.items:
-            db.add(LearningItem(
-                plan_id=plan.id, day_number=item.day_number, title=item.title,
-                description=item.description, item_type=item.item_type,
-            ))
 
     await db.commit()
     await db.refresh(plan, attribute_names=["items"])
@@ -113,8 +118,45 @@ async def update_item(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Learning item not found")
 
     from datetime import datetime, timezone
-    item.is_complete = payload.is_complete
-    item.completed_at = datetime.now(timezone.utc) if payload.is_complete else None
+    if payload.is_complete is not None:
+        item.is_complete = payload.is_complete
+        item.completed_at = datetime.now(timezone.utc) if payload.is_complete else None
+    if payload.title is not None:
+        item.title = payload.title
+    if payload.description is not None:
+        item.description = payload.description
     await db.commit()
     await db.refresh(item)
     return item
+
+
+@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_item(
+    item_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    item = (await db.execute(
+        select(LearningItem).join(LearningPlan).where(
+            LearningItem.id == item_id, LearningPlan.user_id == user.id,
+        )
+    )).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Learning item not found")
+    await db.delete(item)
+    await db.commit()
+
+
+@router.delete("/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_plan(
+    plan_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    plan = (await db.execute(
+        select(LearningPlan).where(LearningPlan.id == plan_id, LearningPlan.user_id == user.id)
+    )).scalar_one_or_none()
+    if plan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Learning plan not found")
+    await db.delete(plan)  # items cascade
+    await db.commit()

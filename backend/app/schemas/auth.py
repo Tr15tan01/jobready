@@ -52,6 +52,9 @@ class VerifyEmailRequest(BaseModel):
 class UpdateProfileRequest(BaseModel):
     full_name: Optional[str] = None
     locale: Optional[str] = None
+    # "I am a ..." — the user's current or target role. Drives interview
+    # practice when no specific saved job is selected.
+    headline: Optional[str] = Field(default=None, max_length=120)
 
 
 class ChangePasswordRequest(BaseModel):

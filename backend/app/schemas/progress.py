@@ -69,4 +69,8 @@ class LearningPlanOut(BaseModel):
 
 
 class ItemUpdateRequest(BaseModel):
-    is_complete: bool
+    """All fields optional so the same endpoint handles ticking an item
+    off and editing its text."""
+    is_complete: Optional[bool] = None
+    title: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    description: Optional[str] = Field(default=None, max_length=2000)

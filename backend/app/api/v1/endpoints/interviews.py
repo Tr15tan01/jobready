@@ -3,7 +3,7 @@ from statistics import mean
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -30,7 +30,7 @@ from app.services.ai.base import get_ai_service
 from app.services.auth.jwt import get_current_user
 from app.services.speech.base import get_speech_provider
 from app.services.speech.metrics import compute_speech_metrics
-from app.services.usage import check_and_increment_usage
+from app.services.usage import check_and_increment_usage, session_caps
 
 MAX_AUDIO_BYTES = 15 * 1024 * 1024  # 15 MB
 ALLOWED_AUDIO_TYPES = {"audio/webm", "audio/wav", "audio/mpeg", "audio/mp4", "audio/ogg"}
@@ -54,8 +54,12 @@ async def _get_owned_session(db: AsyncSession, user: User, session_id: uuid.UUID
 
 
 async def _job_context(db: AsyncSession, user: User, job_id: Optional[uuid.UUID]) -> tuple[Optional[str], Optional[dict]]:
+    """Resolves what role questions should target. A chosen saved job wins
+    (title + extracted requirements); otherwise fall back to the user's own
+    headline ("I am a ...") so questions still fit their field."""
     if not job_id:
-        return None, None
+        from app.api.v1.endpoints.me import get_headline
+        return await get_headline(db, user), None
     job = (await db.execute(
         select(Job).where(Job.id == job_id, Job.user_id == user.id).options(selectinload(Job.requirements))
     )).scalar_one_or_none()
@@ -154,15 +158,38 @@ async def evaluate_answer(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AnswerEvaluation:
     session = await _get_owned_session(db, user, session_id)
-    answer = None
-    question_prompt = None
-    for q in session.questions:
-        if q.answer and q.answer.id == payload.answer_id:
-            answer = q.answer
-            question_prompt = q.prompt
-            break
-    if answer is None:
+
+    # Look the answer up directly. Walking question.answer can't work:
+    # that relationship is one-to-one, but "One more try" adds a second
+    # answer to the same question, so a retry would be invisible and fail
+    # with "Answer not found". Joining on session_id also enforces that
+    # the answer belongs to this user's session.
+    row = (await db.execute(
+        select(InterviewAnswer, InterviewQuestion.prompt)
+        .join(InterviewQuestion, InterviewAnswer.question_id == InterviewQuestion.id)
+        .where(InterviewAnswer.id == payload.answer_id, InterviewQuestion.session_id == session.id)
+    )).first()
+    if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Answer not found")
+    answer, question_prompt = row
+
+    # Per-session cap — the thing that actually bounds a session's cost.
+    plan = user.subscription.plan if user.subscription else "free"
+    caps = session_caps(plan)
+    limit = caps["max_speech_attempts"] if session.session_type == "speech_practice" else caps["max_evaluations"]
+    used = (await db.execute(
+        select(func.count(AnswerEvaluation.id))
+        .join(InterviewAnswer, AnswerEvaluation.answer_id == InterviewAnswer.id)
+        .join(InterviewQuestion, InterviewAnswer.question_id == InterviewQuestion.id)
+        .where(InterviewQuestion.session_id == session.id)
+    )).scalar_one()
+    if used >= limit:
+        noun = "attempts" if session.session_type == "speech_practice" else "scored answers"
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"You've used all {limit} {noun} for this session on the {plan.title()} plan. "
+                   "Finish to see your results, or upgrade for longer sessions.",
+        )
 
     ai = get_ai_service()
     result = await ai.evaluate_answer(
@@ -191,6 +218,15 @@ async def next_question(
     questions up front (section 14), keeping AI cost proportional to
     actual usage."""
     session = await _get_owned_session(db, user, session_id)
+
+    plan = user.subscription.plan if user.subscription else "free"
+    max_q = session_caps(plan)["max_questions"]
+    if len(session.questions) >= max_q:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"This session has reached its {max_q}-question limit on the {plan.title()} plan. "
+                   "Finish to see your results, or upgrade for longer sessions.",
+        )
 
     previous_qa = [
         {"question": q.prompt, "answer": q.answer.transcript}
@@ -330,6 +366,16 @@ async def submit_voice_answer(
 
     provider = get_speech_provider()
     transcript = await provider.transcribe(audio_bytes, audio.content_type, user.locale)
+    in_tok, out_tok = provider.last_usage
+    from app.core.config import settings as _settings
+    from app.models.progress import AIRequest
+    from app.services.costs import estimate_cost
+    db.add(AIRequest(
+        user_id=user.id, feature="transcription", model=_settings.SPEECH_MODEL,
+        input_tokens=in_tok, output_tokens=out_tok,
+        estimated_cost_usd=round(estimate_cost(_settings.SPEECH_MODEL, in_tok, out_tok), 6),
+        cache_hit=False, status="success",
+    ))
     del audio_bytes  # explicit: nothing beyond this line ever touches raw audio again
 
     if not transcript:
