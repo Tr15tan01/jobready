@@ -25,6 +25,10 @@ const CATEGORY_STYLE: Record<string, string> = {
   "Product & Business": "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300",
   "Marketing & Sales": "bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300",
   Education: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
+  "Finance & Legal": "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300",
+  Operations: "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300",
+  "Customer Service": "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300",
+  Hospitality: "bg-lime-100 text-lime-800 dark:bg-lime-950/60 dark:text-lime-300",
 };
 
 export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
@@ -34,6 +38,7 @@ export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
   const [adding, setAdding] = useState<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [category, setCategory] = useState<string>("All");
+  const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,7 +70,12 @@ export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
   }
 
   const categories = ["All", ...Array.from(new Set(examples.map((e) => e.category)))];
-  const visible = category === "All" ? examples : examples.filter((e) => e.category === category);
+  const needle = search.trim().toLowerCase();
+  const visible = examples.filter(
+    (e) =>
+      (category === "All" || e.category === category) &&
+      (!needle || `${e.title} ${e.company} ${e.category}`.toLowerCase().includes(needle))
+  );
 
   return (
     <section>
@@ -78,6 +88,14 @@ export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
         </div>
       </div>
 
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder={`Search ${examples.length} example roles — e.g. nurse, analyst, designer`}
+        aria-label="Search example roles"
+        className="mb-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+      />
       <div className="mb-4 flex flex-wrap gap-1.5">
         {categories.map((c) => (
           <button
@@ -97,7 +115,7 @@ export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
 
       {error && <p className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="animate-stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {loading
           ? [0, 1, 2].map((i) => (
               <div key={i} className="rounded-xl border border-slate-100 p-4 dark:border-slate-800">
@@ -106,6 +124,8 @@ export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
                 <Skeleton className="h-3 w-28" />
               </div>
             ))
+          : visible.length === 0
+          ? [<p key="none" className="col-span-full py-6 text-center text-sm text-slate-500 dark:text-slate-400">No example roles match &ldquo;{search}&rdquo;.</p>]
           : visible.map((job) => {
               const isAdded = added.has(job.id);
               return (

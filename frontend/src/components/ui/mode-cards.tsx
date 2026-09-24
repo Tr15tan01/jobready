@@ -37,7 +37,7 @@ export function ModeCards({
   return (
     <div>
       <p className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">{label}</p>
-      <div role="radiogroup" aria-label={label} className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+      <div role="radiogroup" aria-label={label} className="animate-stagger grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-2.5">
         {options.map(({ value: v, label: l, description, icon: Icon, tone }) => {
           const active = value === v;
           return (
@@ -48,7 +48,7 @@ export function ModeCards({
               aria-checked={active}
               disabled={disabled}
               onClick={() => onChange(v)}
-              className={`group flex flex-col items-start gap-2 rounded-xl border-2 p-3 text-left transition motion-reduce:transition-none disabled:opacity-50 ${
+              className={`group flex min-w-0 flex-col items-start gap-2 break-words rounded-xl border-2 p-3 text-left transition-colors motion-reduce:transition-none disabled:opacity-50 ${
                 active
                   ? `${tone.ring} ${tone.tint} ring-4`
                   : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"

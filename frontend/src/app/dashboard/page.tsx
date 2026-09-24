@@ -140,7 +140,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Quick actions */}
-      <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section className="animate-stagger mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {ACTIONS.map(({ href, label, desc, icon: Icon, bg }) => (
           <Link
             key={href}
@@ -162,7 +162,7 @@ export default function DashboardPage() {
       <section className="mt-8">
         <h2 className="mb-3 font-semibold text-slate-900 dark:text-slate-50">Your readiness</h2>
         {loading ? (
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <div className="animate-stagger grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="rounded-xl border border-slate-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
                 <Skeleton className="h-3 w-24" /><Skeleton className="mt-3 h-7 w-16" />
@@ -170,7 +170,7 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <div className="animate-stagger grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <MetricCard label="Resume Match" value={summary?.resume_match_pct ?? null} hint="Add a job to see how your resume matches" />
             <MetricCard label="Interview Readiness" value={summary?.interview_readiness_pct ?? null} hint="Complete a practice interview" />
             <MetricCard label="Communication" value={summary?.communication_pct ?? null} hint="Measured from your practice answers" />

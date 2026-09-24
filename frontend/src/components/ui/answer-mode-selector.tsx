@@ -62,7 +62,7 @@ export function AnswerModeSelector({
       <p className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
         How do you want to answer?
       </p>
-      <div role="radiogroup" className="grid grid-cols-3 gap-2">
+      <div role="radiogroup" className="animate-stagger grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2">
         {MODES.map((mode) => {
           const isActive = value === mode.value;
           return (
@@ -73,7 +73,7 @@ export function AnswerModeSelector({
               aria-checked={isActive}
               disabled={disabled}
               onClick={() => onChange(mode.value)}
-              className={`flex flex-col items-center gap-1.5 rounded-lg border-2 px-2 py-3 text-sm font-medium transition disabled:opacity-50 motion-reduce:transition-none ${
+              className={`flex min-h-[4.5rem] min-w-0 flex-col items-center justify-center gap-1.5 break-words rounded-xl border-2 px-2 py-3 text-center text-sm font-medium leading-tight transition-colors disabled:opacity-50 motion-reduce:transition-none ${
                 isActive ? mode.active : mode.idle
               }`}
             >
@@ -84,7 +84,7 @@ export function AnswerModeSelector({
         })}
       </div>
       {selected && (
-        <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+        <p aria-live="polite" className="mt-2 min-h-[4.5em] text-xs leading-relaxed text-slate-500 dark:text-slate-400">
           {selected.hint}
         </p>
       )}

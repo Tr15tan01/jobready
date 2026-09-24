@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { API_URL } from "@/lib/api-client";
 import { LoadingButton } from "@/components/ui/spinner";
+import { AuthLoadingOverlay } from "@/components/auth-loading-overlay";
 
 const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "1";
 
@@ -12,6 +13,13 @@ function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const callbackUrl = params.get("callbackUrl") ?? "/dashboard";
+  const reason = params.get("reason");
+  const reasonText =
+    reason === "idle"
+      ? "You were signed out after a period of inactivity. Please sign in again."
+      : reason === "expired"
+      ? "Your session expired. Please sign in again."
+      : null;
   const { login } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -35,8 +43,14 @@ function LoginForm() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 dark:bg-slate-950">
+      <AuthLoadingOverlay show={loading} title="Signing you in…" />
       <h1 className="mb-1 text-2xl font-semibold text-slate-900 dark:text-slate-50">Welcome back</h1>
       <p className="mb-8 text-sm text-slate-500 dark:text-slate-400">Log in to keep practicing with JobReady.</p>
+      {reasonText && (
+        <p role="status" className="animate-fade-in -mt-4 mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          {reasonText}
+        </p>
+      )}
 
       {GOOGLE_AUTH_ENABLED && (
         <>

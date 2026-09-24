@@ -12,7 +12,7 @@ export default function InterviewPage() {
       </div>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <InterviewPractice />
-        <div className="space-y-4">
+        <div className="animate-stagger space-y-4">
           <PracticeTips set="interview" />
           <WhatWeMeasure
             items={[

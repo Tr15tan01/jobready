@@ -138,7 +138,7 @@ export default function LandingPage() {
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">Everything you need to get ready</h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">From your first resume draft to the final interview.</p>
         </div>
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="animate-stagger mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(({ icon: Icon, title, body, tone }) => (
             <div key={title} className="rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:border-slate-800 dark:bg-slate-900">
               <span className={`flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm ${tone}`}><Icon size={22} /></span>
@@ -153,7 +153,7 @@ export default function LandingPage() {
       <section id="how" className="scroll-mt-20 bg-slate-50/60 py-20 dark:bg-slate-900/40">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <h2 className="text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">How it works</h2>
-          <ol className="mt-12 grid gap-6 md:grid-cols-3">
+          <ol className="animate-stagger mt-12 grid gap-6 md:grid-cols-3">
             {[
               ["Tell us your role", "Set your job title, add a resume, and optionally a job you're applying for."],
               ["Practise out loud", "Answer realistic questions by typing, speaking, or on camera."],
@@ -204,7 +204,7 @@ export default function LandingPage() {
       {/* Pricing */}
       <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6">
         <h2 className="text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">Simple pricing</h2>
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className="animate-stagger mt-12 grid gap-6 md:grid-cols-3">
           {PLANS.map((p) => (
             <div key={p.name} className={`relative flex flex-col rounded-2xl border-2 bg-white p-6 dark:bg-slate-900 ${p.featured ? "border-indigo-600 shadow-xl shadow-indigo-600/10" : "border-slate-200 dark:border-slate-800"}`}>
               {p.featured && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">Most popular</span>}

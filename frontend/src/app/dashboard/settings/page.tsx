@@ -172,7 +172,7 @@ export default function SettingsPage() {
       {loading ? (
         <LoadingPanel label="Loading your settings..." />
       ) : (
-        <div className="space-y-6">
+        <div className="animate-stagger space-y-6">
           {/* Profile */}
           <section className="rounded-xl border border-slate-100 p-6 dark:border-slate-800 dark:bg-slate-900">
             <h2 className="mb-4 font-medium text-slate-900 dark:text-slate-50">Profile</h2>

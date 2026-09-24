@@ -12,7 +12,7 @@ export default function SpeechPracticePage() {
       </div>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <SpeechPractice />
-        <div className="space-y-4">
+        <div className="animate-stagger space-y-4">
           <PracticeTips set="speech" />
           <WhatWeMeasure
             items={[

@@ -156,7 +156,7 @@ export function ResumeManager({ locale }: { locale: Locale }) {
   return (
     <div className="space-y-6">
       {/* Two ways in: build from scratch, or bring an existing resume */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="animate-stagger grid gap-3 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => setShowWizard(true)}

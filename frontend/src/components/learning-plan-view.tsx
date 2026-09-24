@@ -193,7 +193,7 @@ export function LearningPlanView() {
 
       {errorBox}
 
-      <ul className="space-y-2">
+      <ul className="animate-stagger space-y-2">
         {items.map((item) => (
           <li key={item.id} className="animate-fade-in rounded-xl border border-slate-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             {editing === item.id ? (

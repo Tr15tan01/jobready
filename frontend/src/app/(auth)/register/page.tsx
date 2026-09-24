@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { LoadingButton } from "@/components/ui/spinner";
 import { API_URL } from "@/lib/api-client";
+import { AuthLoadingOverlay } from "@/components/auth-loading-overlay";
 
 const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "1";
 
@@ -42,6 +43,7 @@ export default function RegisterPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 dark:bg-slate-950">
+      <AuthLoadingOverlay show={loading} title="Creating your account…" />
       <h1 className="mb-1 text-2xl font-semibold text-slate-900 dark:text-slate-50">Create your account</h1>
       <p className="mb-8 text-sm text-slate-500 dark:text-slate-400">Start preparing smarter, for free.</p>
 
