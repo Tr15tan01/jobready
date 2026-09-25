@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: process.env.NEXT_PUBLIC_APP_NAME ?? "JobReady",
   description: "Your AI Communication & Career Coach — prepare smarter, interview better, get hired.",
   icons: { icon: "/icon.svg" },

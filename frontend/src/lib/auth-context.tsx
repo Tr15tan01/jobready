@@ -36,12 +36,20 @@ type AuthContextValue = {
   slow: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName?: string) => Promise<void>;
-  logout: () => Promise<void>;
+  /** Signs out everywhere; with `redirectTo`, leaves via location.replace(). */
+  logout: (redirectTo?: string) => Promise<void>;
   setTokens: (accessToken: string, refreshToken: string) => Promise<void>;
   refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+// Set once a sign-out navigation has started, so guards don't race it with a
+// second redirect. Module-level on purpose: it must be readable synchronously.
+let leaving = false;
+export function isLeaving() {
+  return leaving;
+}
 
 function setAuthedCookie(present: boolean) {
   document.cookie = present
@@ -116,8 +124,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const expireSession = useCallback((reason: "idle" | "expired") => {
     if (expiringRef.current) return;
     expiringRef.current = true;
+    const protectedPage = isProtectedPath();
+    if (protectedPage) leaving = true;
     clearTokens();
-    if (isProtectedPath()) window.location.assign(`/login?reason=${reason}`);
+    if (protectedPage) window.location.replace(`/login?reason=${reason}`);
     else expiringRef.current = false;
   }, [clearTokens]);
 
@@ -204,13 +214,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     events.forEach((e) => window.addEventListener(e, mark, { passive: true }));
     const onStorage = (e: StorageEvent) => {
       if (e.key === ACTIVITY_KEY && e.newValue) lastActivityRef.current = Number(e.newValue);
+      // Signed out in another tab: sign this tab out too.
+      if (e.key === ACCESS_TOKEN_KEY && !e.newValue) {
+        clearTokens();
+        if (isProtectedPath()) window.location.replace("/login");
+      }
     };
     window.addEventListener("storage", onStorage);
     return () => {
       events.forEach((e) => window.removeEventListener(e, mark));
       window.removeEventListener("storage", onStorage);
     };
-  }, []);
+  }, [clearTokens]);
+
+  // ---- Back/forward cache ------------------------------------------------
+  // Browsers can restore a page from memory when the user presses Back, as a
+  // frozen snapshot — including a dashboard they already signed out of. When
+  // that happens, re-check the stored session and leave if it's gone.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      leaving = false;
+      const hasSession = !!localStorage.getItem(ACCESS_TOKEN_KEY) && !!localStorage.getItem(REFRESH_TOKEN_KEY);
+      if (!hasSession) {
+        clearTokens();
+        if (isProtectedPath()) window.location.replace("/login");
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [clearTokens]);
 
   // ---- Session heartbeat -------------------------------------------------
   // Runs every minute and whenever the tab becomes visible again (a sleeping
@@ -253,7 +286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Came back after the idle window (e.g. closed the tab yesterday).
       if (Date.now() - readActivity() > IDLE_MS) {
         clearTokens();
-        if (isProtectedPath()) window.location.assign("/login?reason=idle");
+        if (isProtectedPath()) window.location.replace("/login?reason=idle");
         setLoading(false);
         return;
       }
@@ -276,6 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const startSession = useCallback(async (access: string, refresh: string) => {
     expiringRef.current = false;
+    leaving = false;
     const now = Date.now();
     lastActivityRef.current = now;
     localStorage.setItem(ACTIVITY_KEY, String(now));
@@ -310,7 +344,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await startSession(access_token, refresh_token);
   }, [startSession]);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (redirectTo?: string) => {
+    if (redirectTo) leaving = true;
     const token = accessRef.current;
     if (token) {
       // Best effort: revokes every session server-side (token_version bump).
@@ -320,6 +355,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }).catch(() => {});
     }
     clearTokens();
+    localStorage.removeItem(ACTIVITY_KEY);
+    if (redirectTo) window.location.replace(redirectTo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearTokens]);
 

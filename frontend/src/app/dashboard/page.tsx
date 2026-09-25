@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  MessageSquare, Mic, FileText, Briefcase, Pencil, Check, X, ArrowRight, Sparkles,
+  MessageSquare, Mic, FileText, Briefcase, Pencil, Check, X, ArrowRight, Sparkles, BookMarked,
 } from "lucide-react";
+import { GUIDES } from "@/lib/tips-content";
+import { GUIDE_ICON } from "@/components/tips-icons";
 import { useAuth } from "@/lib/auth-context";
 import { API_URL } from "@/lib/api-client";
 import { MetricCard, EmptyState } from "@/components/ui/empty-state";
@@ -156,6 +158,30 @@ export default function DashboardPage() {
             </p>
           </Link>
         ))}
+      </section>
+
+      {/* Speaking guides */}
+      <section aria-labelledby="guides-h" className="mt-6 rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-4 sm:p-5 dark:border-orange-900/50 dark:from-orange-950/30 dark:to-amber-950/20">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="guides-h" className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+            <BookMarked size={18} className="text-orange-600" aria-hidden="true" /> Speaking guides
+          </h2>
+          <Link href="/tips" className="text-sm font-semibold text-orange-700 hover:underline dark:text-orange-300">All guides →</Link>
+        </div>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Structures, drills and research for every kind of speech — read one before you practise.</p>
+        <ul className="mt-3 flex flex-wrap gap-2">
+          {GUIDES.map((g) => {
+            const GIcon = GUIDE_ICON[g.slug] ?? Mic;
+            return (
+              <li key={g.slug}>
+                <Link href={`/tips/${g.slug}`} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:border-orange-300 hover:bg-orange-50 dark:border-orange-900/60 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-white ${g.accent.tile}`}><GIcon size={11} aria-hidden="true" /></span>
+                  {g.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       {/* Scores */}

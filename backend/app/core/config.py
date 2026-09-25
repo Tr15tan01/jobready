@@ -35,7 +35,12 @@ class Settings(BaseSettings):
     AUTH_SECRET: str = "change-me-in-production"
     AUTH_JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    # Sliding session: the refresh token is re-issued on every refresh, and
+    # refreshes only happen while the user is active. So a user stays signed
+    # in as long as they keep using the app, and is signed out once they've
+    # been idle this long — enforced server-side, not just in the browser.
+    # Keep in sync with the frontend's NEXT_PUBLIC_IDLE_TIMEOUT_HOURS.
+    REFRESH_TOKEN_EXPIRE_HOURS: int = 6
     EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 48
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 30
 
@@ -171,6 +176,12 @@ class Settings(BaseSettings):
     PRO_MAX_QUESTIONS_PER_SESSION: int = 10
     PRO_MAX_EVALUATIONS_PER_SESSION: int = 14
     PRO_MAX_SPEECH_ATTEMPTS: int = 8
+
+    # Speech Practice topic pool per mode (each mode's bank has 36).
+    # Free draws from the first N, Premium from more, Pro from all.
+    FREE_SPEECH_TOPICS: int = 10
+    PREMIUM_SPEECH_TOPICS: int = 24
+    PRO_SPEECH_TOPICS: int = 36
 
     # Monthly price in USD, used by the plan-economics check.
     PREMIUM_PRICE_USD: float = 19.0

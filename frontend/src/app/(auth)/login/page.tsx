@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { API_URL } from "@/lib/api-client";
@@ -12,7 +12,9 @@ const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "1";
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = params.get("callbackUrl") ?? "/dashboard";
+  // Only same-site paths: "//evil.com" or "https://…" would be an open redirect.
+  const rawCallback = params.get("callbackUrl") ?? "";
+  const callbackUrl = rawCallback.startsWith("/") && !rawCallback.startsWith("//") ? rawCallback : "/dashboard";
   const reason = params.get("reason");
   const reasonText =
     reason === "idle"
@@ -20,7 +22,12 @@ function LoginForm() {
       : reason === "expired"
       ? "Your session expired. Please sign in again."
       : null;
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
+
+  // Already signed in (e.g. opened /login in a second tab): skip the form.
+  useEffect(() => {
+    if (!authLoading && user) router.replace(callbackUrl);
+  }, [authLoading, user, router, callbackUrl]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +40,8 @@ function LoginForm() {
     setError(null);
     try {
       await login(email, password);
-      router.push(callbackUrl);
+      // replace(): the login form shouldn't sit in the Back history.
+      router.replace(callbackUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid email or password.");
     } finally {

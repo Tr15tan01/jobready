@@ -18,6 +18,18 @@ const DEVICES = [
   },
   {
     icon: Laptop,
+    name: "Windows laptop — camera not found",
+    color: "text-violet-600",
+    steps: [
+      "Open Windows Settings → Privacy & security → Camera. Turn on “Camera access” and “Let apps access your camera”, and make sure “Let desktop apps access your camera” is on too (browsers count as desktop apps).",
+      "Many laptops have a camera on/off key (often F8, F10 or a key with a crossed-out camera) or a sliding privacy shutter above the screen — check both.",
+      "Close the Camera app, Teams, Zoom or anything else that might be holding the camera.",
+      "Laptops with face sign-in (Windows Hello) have two cameras. Under the preview in JobReady, pick the other one in the “Camera” menu.",
+      "Still nothing? Open Device Manager → Cameras, right-click your camera and choose “Enable device”, or restart the laptop.",
+    ],
+  },
+  {
+    icon: Laptop,
     name: "Safari (Mac)",
     color: "text-sky-600",
     steps: [

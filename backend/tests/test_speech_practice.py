@@ -41,3 +41,49 @@ def test_speech_modes_dont_collide_with_interview_modes():
     modes so evaluation criteria and prompts never mix up."""
     interview_modes = {"behavioral", "domain", "hr", "general", "custom"}
     assert interview_modes.isdisjoint(set(SPEECH_PRACTICE_MODES))
+
+
+# ---- Topic tiers and randomness ------------------------------------------
+
+from app.core.config import settings  # noqa: E402
+from app.data.speech_prompts import available_prompts  # noqa: E402
+
+
+def test_every_mode_has_enough_topics_for_pro():
+    for mode in SPEECH_PRACTICE_MODES:
+        assert len(PROMPT_BANK[mode]) >= settings.PRO_SPEECH_TOPICS
+        assert len(set(PROMPT_BANK[mode])) == len(PROMPT_BANK[mode]), f"duplicate topic in {mode}"
+
+
+def test_paid_plans_unlock_more_topics():
+    assert settings.FREE_SPEECH_TOPICS < settings.PREMIUM_SPEECH_TOPICS < settings.PRO_SPEECH_TOPICS
+
+
+def test_free_plan_only_draws_from_its_slice():
+    free = set(available_prompts("impromptu", settings.FREE_SPEECH_TOPICS))
+    assert len(free) == settings.FREE_SPEECH_TOPICS
+    for _ in range(200):
+        assert get_random_prompt("impromptu", limit=settings.FREE_SPEECH_TOPICS) in free
+
+
+def test_never_repeats_until_pool_is_used_up():
+    limit = settings.FREE_SPEECH_TOPICS
+    history: list[str] = []
+    for _ in range(limit):
+        p = get_random_prompt("impromptu", limit=limit, recent=list(reversed(history)))
+        assert p not in history
+        history.append(p)
+    assert set(history) == set(available_prompts("impromptu", limit))
+
+
+def test_after_pool_used_the_latest_topic_is_not_repeated():
+    limit = settings.FREE_SPEECH_TOPICS
+    pool = available_prompts("debate", limit)
+    recent = list(pool)  # newest first
+    for _ in range(100):
+        assert get_random_prompt("debate", limit=limit, recent=recent) not in recent[: limit // 2]
+
+
+def test_first_topic_is_actually_random():
+    firsts = {get_random_prompt("storytelling", limit=settings.FREE_SPEECH_TOPICS) for _ in range(200)}
+    assert len(firsts) >= 6

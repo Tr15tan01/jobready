@@ -29,12 +29,17 @@ export function VoiceRecorder({
   token,
   onResult,
   onPhaseChange,
+  onCancel,
+  cancelLabel = "Cancel",
 }: {
   sessionId: string;
   questionId: string;
   token: string | null;
   onResult: (result: VoiceResult) => void;
   onPhaseChange?: (phase: RecorderPhase) => void;
+  /** Shown as a Cancel button while idle (e.g. leave the session). */
+  onCancel?: () => void;
+  cancelLabel?: string;
 }) {
   const [phase, setPhaseState] = useState<RecorderPhase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +52,8 @@ export function VoiceRecorder({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Set by Cancel so the stop handler discards instead of uploading.
   const cancelledRef = useRef(false);
+  // Aborts an in-flight upload/transcription when the user cancels it.
+  const uploadRef = useRef<AbortController | null>(null);
 
   function setPhase(p: RecorderPhase) {
     setPhaseState(p);
@@ -59,8 +66,9 @@ export function VoiceRecorder({
     if (timerRef.current) clearInterval(timerRef.current);
   }
 
-  // Never leave the microphone open if the component unmounts mid-recording.
-  useEffect(() => () => releaseMic(), []);
+  // Never leave the microphone open if the component unmounts mid-recording,
+  // and don't deliver a result to a screen that's gone.
+  useEffect(() => () => { releaseMic(); uploadRef.current?.abort(); }, []);
 
   async function start() {
     setError(null);
@@ -96,6 +104,13 @@ export function VoiceRecorder({
     releaseMic();
   }
 
+  function cancelUpload() {
+    uploadRef.current?.abort();
+    uploadRef.current = null;
+    setError(null);
+    setPhase("idle");
+  }
+
   async function handleStop() {
     const blob = new Blob(chunksRef.current, { type: "audio/webm" });
     chunksRef.current = [];
@@ -111,21 +126,34 @@ export function VoiceRecorder({
     const form = new FormData();
     form.append("audio", blob, "answer.webm");
 
+    const controller = new AbortController();
+    uploadRef.current = controller;
     try {
       const res = await fetch(
         `${API_URL}/api/v1/interviews/${sessionId}/answers/voice?question_id=${questionId}&duration_seconds=${duration}`,
-        { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form }
+        {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: form,
+          signal: controller.signal,
+        }
       );
+      if (controller.signal.aborted) return;
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setError(body.detail ?? "We couldn't transcribe that. Please try again.");
         setPhase("idle");
         return;
       }
-      onResult(await res.json());
+      const result = await res.json();
+      if (controller.signal.aborted) return;
+      onResult(result);
     } catch {
+      if (controller.signal.aborted) return; // cancelled on purpose
       setError("Couldn't reach the server. Check your connection and try again.");
       setPhase("idle");
+    } finally {
+      if (uploadRef.current === controller) uploadRef.current = null;
     }
   }
 
@@ -137,6 +165,13 @@ export function VoiceRecorder({
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Camera and microphone are off. Your audio is discarded after transcription.
         </p>
+        <button
+          type="button"
+          onClick={cancelUpload}
+          className="mt-1 inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <X size={15} /> Cancel and record again
+        </button>
       </div>
     );
   }
@@ -182,9 +217,18 @@ export function VoiceRecorder({
         <button
           type="button"
           onClick={cancel}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          className="flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           <X size={15} /> Cancel and discard
+        </button>
+      )}
+      {phase === "idle" && onCancel && (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <X size={15} /> {cancelLabel}
         </button>
       )}
 

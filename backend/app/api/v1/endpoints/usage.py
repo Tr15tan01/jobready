@@ -14,7 +14,7 @@ from app.db.session import get_db
 from app.models.user import UsageRecord, User
 from app.services.auth.jwt import get_current_user
 from app.core.config import settings
-from app.services.usage import _LIMITS, session_caps
+from app.services.usage import _LIMITS, session_caps, speech_topic_limit
 
 router = APIRouter()
 
@@ -50,6 +50,7 @@ def _plan_descriptions() -> dict:
             "features": [
                 f"{L('free')['interview_session']} interviews a month, up to {caps('free')['max_questions']} questions each",
                 f"{L('free')['speech_practice']} speech sessions a month, {caps('free')['max_speech_attempts']} attempts each",
+                f"{speech_topic_limit('free')} topics per speech type",
                 f"{L('free')['job_match']} job matches · {L('free')['resume_analysis']} resume analyses · {L('free')['resume_generation']} AI-built resumes",
                 *shared,
                 "Delivery summary: face in frame and speaking pace",
@@ -60,6 +61,7 @@ def _plan_descriptions() -> dict:
             "features": [
                 f"{L('premium')['interview_session']} interviews a month, up to {caps('premium')['max_questions']} questions each",
                 f"{L('premium')['speech_practice']} speech sessions a month, {caps('premium')['max_speech_attempts']} attempts each",
+                f"{speech_topic_limit('premium')} topics per speech type",
                 f"{L('premium')['job_match']} job matches · {L('premium')['resume_analysis']} resume analyses · {L('premium')['resume_generation']} AI-built resumes",
                 f"{L('premium')['learning_plan']} personalised learning plans a month",
                 "Full delivery analysis: eye contact, head movement, filler words and observations",
@@ -71,6 +73,7 @@ def _plan_descriptions() -> dict:
             "features": [
                 f"{L('pro')['interview_session']} interviews a month, up to {caps('pro')['max_questions']} questions each",
                 f"{L('pro')['speech_practice']} speech sessions a month, {caps('pro')['max_speech_attempts']} attempts each",
+                f"All {speech_topic_limit('pro')} topics per speech type",
                 f"{L('pro')['job_match']} job matches · {L('pro')['resume_analysis']} resume analyses · {L('pro')['resume_generation']} AI-built resumes",
                 f"{L('pro')['learning_plan']} personalised learning plans a month",
                 "Full delivery analysis: eye contact, head movement, filler words and observations",
@@ -128,6 +131,7 @@ async def get_plans() -> dict:
                 **_plan_descriptions()[plan_key],
                 "key": plan_key,
                 "session_caps": session_caps(plan_key),
+                "speech_topics": speech_topic_limit(plan_key),
                 "limits": [
                     {"key": f, "label": FEATURE_LABELS.get(f, f), "limit": lim}
                     for f, lim in _LIMITS[plan_key].items()

@@ -33,7 +33,7 @@ export default function RegisterPage() {
     setError(null);
     try {
       await register(form.email, form.password, form.fullName || undefined);
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create your account.");
     } finally {

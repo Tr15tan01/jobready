@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { LoadingButton, LoadingPanel } from "@/components/ui/spinner";
 import { FONT_SIZES, type FontSize, loadFontSize, saveFontSize } from "@/lib/font-size";
@@ -41,7 +40,6 @@ function UsageBar({ feature }: { feature: UsageFeature }) {
 }
 
 export default function SettingsPage() {
-  const router = useRouter();
   const { accessToken: token, user, refreshUser, logout } = useAuth();
 
   const [usage, setUsage] = useState<Usage | null>(null);
@@ -121,8 +119,7 @@ export default function SettingsPage() {
       // revokes every existing session including this one.
       setPwMsg({ ok: true, text: "Password changed. Signing you out of all devices..." });
       setTimeout(async () => {
-        await logout();
-        router.push("/login");
+        await logout("/login");
       }, 1800);
     } else {
       const body = await res.json().catch(() => ({}));
@@ -158,8 +155,7 @@ export default function SettingsPage() {
     const res = await fetch(`${API_URL}/api/v1/me`, { method: "DELETE", headers: headers() });
     setDeleting(false);
     if (res.ok) {
-      await logout();
-      router.push("/");
+      await logout("/");
     }
   }
 
@@ -286,7 +282,7 @@ export default function SettingsPage() {
           )}
 
           {/* Plans */}
-          <section className="rounded-xl border border-slate-100 p-6 dark:border-slate-800 dark:bg-slate-900">
+          <section id="plans" className="scroll-mt-24 rounded-xl border border-slate-100 p-6 dark:border-slate-800 dark:bg-slate-900">
             <h2 className="mb-4 font-medium text-slate-900 dark:text-slate-50">Plans</h2>
             {upgradeError && (
               <p className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">

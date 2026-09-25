@@ -29,7 +29,13 @@ const CATEGORY_STYLE: Record<string, string> = {
   Operations: "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300",
   "Customer Service": "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300",
   Hospitality: "bg-lime-100 text-lime-800 dark:bg-lime-950/60 dark:text-lime-300",
+  "Trades & Engineering": "bg-yellow-100 text-yellow-800 dark:bg-yellow-950/60 dark:text-yellow-300",
+  "Creative & Media": "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-950/60 dark:text-fuchsia-300",
+  "Public Sector & Nonprofit": "bg-cyan-100 text-cyan-800 dark:bg-cyan-950/60 dark:text-cyan-300",
+  "Science & Research": "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300",
 };
+// First screenful; the rest are one tap away.
+const INITIAL_VISIBLE = 12;
 
 export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
   const { accessToken } = useAuth();
@@ -39,6 +45,7 @@ export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [category, setCategory] = useState<string>("All");
   const [search, setSearch] = useState("");
+  const [showAll, setShowAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -71,11 +78,13 @@ export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
 
   const categories = ["All", ...Array.from(new Set(examples.map((e) => e.category)))];
   const needle = search.trim().toLowerCase();
-  const visible = examples.filter(
+  const matching = examples.filter(
     (e) =>
       (category === "All" || e.category === category) &&
       (!needle || `${e.title} ${e.company} ${e.category}`.toLowerCase().includes(needle))
   );
+  const visible = showAll || needle || category !== "All" ? matching : matching.slice(0, INITIAL_VISIBLE);
+  const hidden = matching.length - visible.length;
 
   return (
     <section>
@@ -83,7 +92,7 @@ export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
         <div>
           <h2 className="font-semibold text-slate-900 dark:text-slate-50">Try an example role</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            No posting to hand? Add one of these and see how your resume matches.
+            No posting to hand? Add one of these — free on every plan — and see how your resume matches.
           </p>
         </div>
       </div>
@@ -157,6 +166,17 @@ export function ExampleJobs({ onAdded }: { onAdded: () => void }) {
               );
             })}
       </div>
+      {!loading && hidden > 0 && (
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            Show all {matching.length} example roles
+          </button>
+        </div>
+      )}
     </section>
   );
 }

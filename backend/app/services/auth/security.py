@@ -5,7 +5,7 @@ it signs its own tokens with AUTH_SECRET and verifies them itself.
 
 Token shape:
   access  — short-lived (ACCESS_TOKEN_EXPIRE_MINUTES), used on every API call.
-  refresh — long-lived (REFRESH_TOKEN_EXPIRE_DAYS), used only to mint a new
+  refresh — sliding idle window (REFRESH_TOKEN_EXPIRE_HOURS), used only to mint a new
             access token. Both embed `tv` (the user's token_version at
             issue time) so logout-everywhere / password-change can
             invalidate every outstanding token by bumping one integer.
@@ -76,7 +76,7 @@ def create_access_token(user_id: uuid.UUID, token_version: int) -> str:
 def create_refresh_token(user_id: uuid.UUID, token_version: int) -> str:
     return _create_token(
         subject=str(user_id), token_type=TokenType.REFRESH,
-        expires_delta=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_delta=timedelta(hours=settings.REFRESH_TOKEN_EXPIRE_HOURS),
         extra_claims={"tv": token_version},
     )
 

@@ -67,7 +67,7 @@ export function WhatWeMeasure({ items }: { items: { color: string; label: string
   return (
     <div className="rounded-2xl border border-slate-100 p-5 dark:border-slate-800 dark:bg-slate-900">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-        What you&apos;ll get
+        What you&apos;ll get <span className="font-medium normal-case tracking-normal text-emerald-600 dark:text-emerald-400">· every plan</span>
       </p>
       <ul className="space-y-2.5">
         {items.map((item) => (

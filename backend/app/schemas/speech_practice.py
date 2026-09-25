@@ -17,3 +17,6 @@ class StartSpeechPracticeResponse(BaseModel):
     question_id: UUID
     mode: SpeechPracticeMode
     prompt: str
+    plan: str = "free"
+    topics_available: int = 0
+    topics_total: int = 0

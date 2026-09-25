@@ -4,8 +4,9 @@ import {
   Megaphone, Zap, BookOpen, Presentation, Scale, Rocket, Stethoscope, Code2, Ruler,
   GraduationCap, LineChart, ShoppingBag,
 } from "lucide-react";
-import { LogoWordmark } from "@/components/ui/logo";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { SPEECH_TIPS_SLUG, INTERVIEW_TIPS_SLUG } from "@/lib/tips-slugs";
 import { AppPreview, PrivacyIllustration } from "@/components/landing/illustrations";
 
 const FEATURES = [
@@ -18,12 +19,12 @@ const FEATURES = [
 ];
 
 const STYLES = [
-  { icon: Megaphone, label: "Persuasive", tone: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
-  { icon: Zap, label: "Impromptu", tone: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" },
-  { icon: BookOpen, label: "Storytelling", tone: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300" },
-  { icon: Presentation, label: "Presentation", tone: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300" },
-  { icon: Scale, label: "Debate", tone: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300" },
-  { icon: Rocket, label: "Elevator pitch", tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  { icon: Megaphone, mode: "persuasive", label: "Persuasive", tone: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
+  { icon: Zap, mode: "impromptu", label: "Impromptu", tone: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" },
+  { icon: BookOpen, mode: "storytelling", label: "Storytelling", tone: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300" },
+  { icon: Presentation, mode: "presentation", label: "Presentation", tone: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300" },
+  { icon: Scale, mode: "debate", label: "Debate", tone: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300" },
+  { icon: Rocket, mode: "pitch", label: "Elevator pitch", tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
 ];
 
 const FIELDS = [
@@ -39,6 +40,7 @@ const PLANS = [
   { name: "Free", price: "$0", tagline: "Everything you need to start", featured: false, cta: "Start free", items: [
     "6 interviews a month, up to 5 questions each",
     "12 speech sessions, 3 attempts each",
+    "10 speaking topics per speech type",
     "12 job matches · 2 resume analyses · 2 AI-built resumes",
     "Text, voice and video answers",
     "Score and written feedback on every answer",
@@ -47,6 +49,7 @@ const PLANS = [
   { name: "Premium", price: "$19", tagline: "For an active job search", featured: true, cta: "Choose Premium", items: [
     "12 interviews a month, up to 8 questions each",
     "22 speech sessions, 5 attempts each",
+    "24 speaking topics per speech type",
     "25 job matches · 10 resume analyses · 8 AI-built resumes",
     "15 personalised learning plans a month",
     "Full delivery analysis: eye contact, movement, filler words",
@@ -55,6 +58,7 @@ const PLANS = [
   { name: "Pro", price: "$49", tagline: "For intensive preparation", featured: false, cta: "Choose Pro", items: [
     "25 interviews a month, up to 10 questions each",
     "32 speech sessions, 8 attempts each",
+    "All 36 speaking topics per speech type",
     "60 job matches · 25 resume analyses · 20 AI-built resumes",
     "40 personalised learning plans a month",
     "Full delivery analysis on every answer",
@@ -73,19 +77,7 @@ const FAQ = [
 export default function LandingPage() {
   return (
     <main className="bg-white dark:bg-slate-950">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/85">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" aria-label="JobReady home"><LogoWordmark size={28} /></Link>
-          <nav className="flex items-center gap-2 sm:gap-3">
-            <a href="#features" className="hidden text-sm font-medium text-slate-600 hover:text-slate-900 md:block dark:text-slate-300 dark:hover:text-white">Features</a>
-            <a href="#pricing" className="hidden text-sm font-medium text-slate-600 hover:text-slate-900 md:block dark:text-slate-300 dark:hover:text-white">Pricing</a>
-            <ThemeToggle />
-            <Link href="/login" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">Log in</Link>
-            <Link href="/register" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">Get started</Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Hero */}
       <section className="relative overflow-hidden">
@@ -173,14 +165,27 @@ export default function LandingPage() {
       <section className="mx-auto max-w-5xl px-4 py-20 text-center sm:px-6">
         <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">Beyond interviews</h2>
         <p className="mx-auto mt-3 max-w-xl text-slate-600 dark:text-slate-400">
-          Get a random prompt and speak. Six styles for everyday communication.
+          Get a random topic and speak. Six styles for everyday communication — each with a free,
+          research-backed guide.
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
-          {STYLES.map(({ icon: Icon, label, tone }) => (
-            <span key={label} className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold ${tone}`}>
-              <Icon size={17} /> {label}
-            </span>
+          {STYLES.map(({ icon: Icon, mode, label, tone }) => (
+            <Link
+              key={label}
+              href={`/tips/${SPEECH_TIPS_SLUG[mode]}`}
+              className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition-transform hover:-translate-y-0.5 ${tone}`}
+            >
+              <Icon size={17} aria-hidden="true" /> {label} guide
+            </Link>
           ))}
+        </div>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link href="/tips" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-orange-600">
+            Read the speaking guides <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+          <Link href={`/tips/${INTERVIEW_TIPS_SLUG}`} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900">
+            How to answer interview questions
+          </Link>
         </div>
       </section>
 
@@ -251,18 +256,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-t border-slate-200 py-10 dark:border-slate-800">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
-          <LogoWordmark size={24} />
-          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500 dark:text-slate-400">
-            <Link href="/about" className="hover:text-slate-900 dark:hover:text-white">About</Link>
-            <Link href="/help/video-privacy" className="hover:text-slate-900 dark:hover:text-white">Video privacy</Link>
-            <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-white">Privacy</Link>
-            <Link href="/terms" className="hover:text-slate-900 dark:hover:text-white">Terms</Link>
-            <Link href="/cookies" className="hover:text-slate-900 dark:hover:text-white">Cookies</Link>
-          </nav>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }

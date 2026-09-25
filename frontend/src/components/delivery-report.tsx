@@ -124,7 +124,7 @@ export function DeliveryReport({
             See eye contact, head movement, filler words and specific observations for every answer —
             plus longer sessions with more retries.
           </p>
-          <Link href="/dashboard/settings" className="mt-2 inline-block text-xs font-semibold text-indigo-700 underline dark:text-indigo-300">
+          <Link href="/dashboard/settings#plans" className="mt-2 inline-block text-xs font-semibold text-indigo-700 underline dark:text-indigo-300">
             Compare plans
           </Link>
         </div>

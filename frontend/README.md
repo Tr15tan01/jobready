@@ -9,7 +9,9 @@ npm run dev
 ```
 
 Runs on http://localhost:3000 and expects the backend at
-`NEXT_PUBLIC_API_URL` (default `http://localhost:8000`).
+`NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). Set `NEXT_PUBLIC_SITE_URL`
+to the public address of the site — the SEO speaking guides (`/tips`), sitemap and
+robots.txt use it.
 
 ## Authentication
 

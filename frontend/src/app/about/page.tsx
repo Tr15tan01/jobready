@@ -1,5 +1,10 @@
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+
 export default function AboutPage() {
   return (
+    <div className="min-h-screen bg-white dark:bg-slate-950">
+    <SiteHeader />
     <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16 prose prose-slate dark:prose-invert dark:bg-slate-950">
       <h1>About JobReady</h1>
       <p>
@@ -25,5 +30,7 @@ export default function AboutPage() {
         browser wherever possible; only derived metrics, transcripts and scores are saved.
       </p>
     </main>
+    <SiteFooter />
+    </div>
   );
 }

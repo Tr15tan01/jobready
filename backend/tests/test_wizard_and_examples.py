@@ -93,3 +93,24 @@ def test_every_ai_call_sets_an_output_token_budget():
     budgets = source.count("max_output_tokens=")
     assert calls > 0
     assert budgets == calls, f"{calls} AI calls but only {budgets} have an output budget"
+
+
+def test_example_library_is_substantial():
+    assert len(EXAMPLE_JOBS) >= 60
+
+
+def test_every_example_has_the_sections_the_extractor_expects():
+    for job in EXAMPLE_JOBS:
+        d = job["description"]
+        assert "Responsibilities:" in d and "Required:" in d and "Preferred:" in d, job["id"]
+
+
+def test_refresh_token_is_a_sliding_idle_window():
+    """Signed out after the idle window, not after 30 days."""
+    import time, uuid
+    from app.core.config import settings
+    from app.services.auth.security import TokenType, create_refresh_token, decode_token
+    claims = decode_token(create_refresh_token(uuid.uuid4(), 0), TokenType.REFRESH)
+    lifetime_h = (claims["exp"] - time.time()) / 3600
+    assert abs(lifetime_h - settings.REFRESH_TOKEN_EXPIRE_HOURS) < 0.1
+    assert settings.REFRESH_TOKEN_EXPIRE_HOURS <= 24

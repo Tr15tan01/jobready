@@ -38,6 +38,16 @@ SESSION_CAPS = {
 }
 
 
+SPEECH_TOPICS = {
+    plan: getattr(settings, f"{key}_SPEECH_TOPICS")
+    for plan, key in (("free", "FREE"), ("premium", "PREMIUM"), ("pro", "PRO"))
+}
+
+
+def speech_topic_limit(plan: str) -> int:
+    return SPEECH_TOPICS.get(plan, SPEECH_TOPICS["free"])
+
+
 def session_caps(plan: str) -> dict:
     return SESSION_CAPS.get(plan, SESSION_CAPS["free"])
 

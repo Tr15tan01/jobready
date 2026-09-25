@@ -1,5 +1,8 @@
 import { SpeechPractice } from "@/components/speech-practice";
+import Link from "next/link";
+import { BookMarked } from "lucide-react";
 import { PracticeTips, WhatWeMeasure } from "@/components/practice-tips";
+import { PlanPerks } from "@/components/plan-perks";
 
 export default function SpeechPracticePage() {
   return (
@@ -10,7 +13,7 @@ export default function SpeechPracticePage() {
           Pick a format, get a random prompt, and speak. Six styles for everyday communication.
         </p>
       </div>
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <SpeechPractice />
         <div className="animate-stagger space-y-4">
           <PracticeTips set="speech" />
@@ -22,6 +25,14 @@ export default function SpeechPracticePage() {
               { color: "bg-violet-500", label: "Eye contact & movement", desc: "video only, analysed on your device" },
             ]}
           />
+          <PlanPerks kind="speech" />
+          <Link
+            href={"/tips"}
+            className="flex items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold text-orange-900 transition-colors hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-200 dark:hover:bg-orange-900/30"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-white"><BookMarked size={17} aria-hidden="true" /></span>
+            Speaking guides for all six speech types →
+          </Link>
         </div>
       </div>
     </main>

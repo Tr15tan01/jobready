@@ -102,8 +102,17 @@ export function LoadingButton({
 
 /**
  * Full-block loading state for panels that are fetching their initial data.
+ * With `onCancel`, shows a Cancel button so a long wait is never a dead end.
  */
-export function LoadingPanel({ label = "Loading..." }: { label?: string }) {
+export function LoadingPanel({
+  label = "Loading...",
+  onCancel,
+  cancelLabel = "Cancel",
+}: {
+  label?: string;
+  onCancel?: () => void;
+  cancelLabel?: string;
+}) {
   return (
     <div
       role="status"
@@ -112,6 +121,15 @@ export function LoadingPanel({ label = "Loading..." }: { label?: string }) {
     >
       <GradientSpinner />
       <span>{label}</span>
+      {onCancel && (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="mt-1 inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <span aria-hidden="true">×</span> {cancelLabel}
+        </button>
+      )}
     </div>
   );
 }

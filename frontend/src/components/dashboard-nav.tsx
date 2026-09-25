@@ -5,23 +5,37 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, Briefcase, MessageSquare, Mic, TrendingUp,
-  CalendarCheck, Settings, Menu, X, ShieldCheck, LogOut,
+  CalendarCheck, Settings, Menu, X, ShieldCheck, LogOut, Lightbulb,
 } from "lucide-react";
 import { LogoWordmark } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth-context";
 
+// `tone` is the solid colour (drawer icon tile, active desktop pill);
+// `soft` is the tinted resting state of the desktop pill. Full class strings
+// so Tailwind keeps them.
 const LINKS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, tone: "bg-indigo-600" },
-  { href: "/dashboard/resume", label: "Resume", icon: FileText, tone: "bg-emerald-600" },
-  { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase, tone: "bg-amber-500" },
-  { href: "/dashboard/interview", label: "Interview", icon: MessageSquare, tone: "bg-violet-600" },
-  { href: "/dashboard/speech-practice", label: "Speech", icon: Mic, tone: "bg-rose-600" },
-  { href: "/dashboard/progress", label: "Progress", icon: TrendingUp, tone: "bg-sky-600" },
-  { href: "/dashboard/learning-plan", label: "Plan", icon: CalendarCheck, tone: "bg-teal-600" },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings, tone: "bg-slate-600" },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, tone: "bg-indigo-600",
+    soft: "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900/60" },
+  { href: "/dashboard/resume", label: "Resume", icon: FileText, tone: "bg-emerald-600",
+    soft: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/60" },
+  { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase, tone: "bg-amber-500",
+    soft: "bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300 dark:hover:bg-amber-900/60" },
+  { href: "/dashboard/interview", label: "Interview", icon: MessageSquare, tone: "bg-violet-600",
+    soft: "bg-violet-50 text-violet-700 hover:bg-violet-100 dark:bg-violet-950/50 dark:text-violet-300 dark:hover:bg-violet-900/60" },
+  { href: "/dashboard/speech-practice", label: "Speech", icon: Mic, tone: "bg-rose-600",
+    soft: "bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60" },
+  { href: "/dashboard/progress", label: "Progress", icon: TrendingUp, tone: "bg-sky-600",
+    soft: "bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-900/60" },
+  { href: "/dashboard/learning-plan", label: "Plan", icon: CalendarCheck, tone: "bg-teal-600",
+    soft: "bg-teal-50 text-teal-700 hover:bg-teal-100 dark:bg-teal-950/50 dark:text-teal-300 dark:hover:bg-teal-900/60" },
+  { href: "/tips", label: "Tips", icon: Lightbulb, tone: "bg-orange-500",
+    soft: "bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-950/50 dark:text-orange-300 dark:hover:bg-orange-900/60" },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings, tone: "bg-slate-600",
+    soft: "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" },
 ];
-const ADMIN_LINK = { href: "/admin", label: "Admin", icon: ShieldCheck, tone: "bg-amber-600" };
+const ADMIN_LINK = { href: "/admin", label: "Admin", icon: ShieldCheck, tone: "bg-amber-600",
+  soft: "bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300 dark:hover:bg-amber-900/60" };
 
 function isActive(pathname: string, href: string) {
   // "/dashboard" must match exactly or it would light up on every page.
@@ -58,34 +72,33 @@ export function DashboardNav() {
   }, [open]);
 
   async function signOut() {
-    await logout();
-    window.location.assign("/login");
+    // Lands on the home page via replace(), not assign(): the signed-out
+    // dashboard must not stay in the Back history.
+    await logout("/");
   }
 
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/85">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 max-w-[92rem] items-center justify-between gap-3 px-4 sm:px-6">
           <Link href="/dashboard" className="shrink-0" aria-label="JobReady home">
             <LogoWordmark size={28} />
           </Link>
 
           {/* Desktop */}
-          <nav aria-label="Main" className="hidden items-center gap-1 xl:flex">
-            {links.map(({ href, label, icon: Icon }) => {
+          <nav aria-label="Main" className="hidden items-center gap-1.5 xl:flex">
+            {links.map(({ href, label, icon: Icon, tone, soft }) => {
               const active = isActive(pathname, href);
               return (
                 <Link
                   key={href}
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    active
-                      ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-all duration-150 active:scale-95 ${
+                    active ? `${tone} text-white shadow-sm ring-2 ring-white/60 dark:ring-slate-950/60` : soft
                   }`}
                 >
-                  <Icon size={16} />
+                  <Icon size={15} aria-hidden="true" />
                   {label}
                 </Link>
               );
@@ -97,7 +110,7 @@ export function DashboardNav() {
             <button
               type="button"
               onClick={signOut}
-              className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 xl:flex dark:text-slate-300 dark:hover:bg-slate-800"
+              className="hidden items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-[13px] font-semibold text-slate-600 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 xl:flex dark:border-slate-700 dark:text-slate-300 dark:hover:border-rose-900 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
             >
               <LogOut size={16} /> Log out
             </button>
