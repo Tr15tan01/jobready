@@ -6,13 +6,18 @@ import { useAuth } from "@/lib/auth-context";
 import { LoadingButton } from "@/components/ui/spinner";
 import { API_URL } from "@/lib/api-client";
 import { AuthLoadingOverlay } from "@/components/auth-loading-overlay";
+import { Turnstile, TURNSTILE_SITE_KEY } from "@/components/turnstile";
 
 const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "1";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
-  const [form, setForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "", website: "" });
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  // Bumped after a failed submit to remount the captcha: tokens are single-use.
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const captchaPending = Boolean(TURNSTILE_SITE_KEY) && !captchaToken;
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -29,13 +34,20 @@ export default function RegisterPage() {
       setError("Those passwords don't match.");
       return;
     }
+    if (captchaPending) {
+      setError("Please complete the verification check.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      await register(form.email, form.password, form.fullName || undefined);
+      await register(form.email, form.password, form.fullName || undefined, {
+        captchaToken, website: form.website,
+      });
       router.replace("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create your account.");
+      setCaptchaKey((k) => k + 1);
     } finally {
       setLoading(false);
     }
@@ -102,6 +114,22 @@ export default function RegisterPage() {
               : "border-slate-200 focus:border-indigo-400 dark:border-slate-700"
           }`}
         />
+        {/* Honeypot: invisible to people and screen readers, but naive bots
+            fill every input. Any value here makes the backend reject sign-up. */}
+        <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+          <label>
+            Website
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={form.website}
+              onChange={(e) => setForm({ ...form, website: e.target.value })}
+            />
+          </label>
+        </div>
+        <Turnstile key={captchaKey} onToken={setCaptchaToken} />
         {mismatch && (
           <p className="text-xs text-red-600">Passwords don&apos;t match yet.</p>
         )}
@@ -110,7 +138,7 @@ export default function RegisterPage() {
           type="submit"
           loading={loading}
           loadingText="Creating your account..."
-          disabled={mismatch}
+          disabled={mismatch || captchaPending}
           className="mt-2 w-full"
         >
           Create account

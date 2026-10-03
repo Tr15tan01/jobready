@@ -18,6 +18,8 @@ const IDLE_MS = (Number(process.env.NEXT_PUBLIC_IDLE_TIMEOUT_HOURS) || 6) * 60 *
 const RECENT_ACTIVITY_MS = 15 * 60 * 1000;
 // A request slower than this gets a visible "waking up" notice.
 const SLOW_REQUEST_MS = 5000;
+// The backend rate-limits sign-in/sign-up per IP; its 429 body has no `detail`.
+const TOO_MANY_ATTEMPTS = "Too many attempts. Please wait a while and try again.";
 
 export type CurrentUser = {
   id: string;
@@ -35,7 +37,10 @@ type AuthContextValue = {
   /** True while any API request has been pending for a while (e.g. a sleeping server waking up). */
   slow: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName?: string) => Promise<void>;
+  register: (
+    email: string, password: string, fullName?: string,
+    bot?: { captchaToken?: string | null; website?: string },
+  ) => Promise<void>;
   /** Signs out everywhere; with `redirectTo`, leaves via location.replace(). */
   logout: (redirectTo?: string) => Promise<void>;
   setTokens: (accessToken: string, refreshToken: string) => Promise<void>;
@@ -323,6 +328,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ email, password }),
     });
     if (!res.ok) {
+      if (res.status === 429) throw new Error(TOO_MANY_ATTEMPTS);
       const body = await res.json().catch(() => ({}));
       throw new Error(typeof body.detail === "string" ? body.detail : "Invalid email or password.");
     }
@@ -330,13 +336,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await startSession(access_token, refresh_token);
   }, [startSession]);
 
-  const register = useCallback(async (email: string, password: string, fullName?: string) => {
+  const register = useCallback(async (
+    email: string, password: string, fullName?: string,
+    bot?: { captchaToken?: string | null; website?: string },
+  ) => {
     const res = await fetch(`${API_URL}/api/v1/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, full_name: fullName }),
+      body: JSON.stringify({
+        email, password, full_name: fullName,
+        captcha_token: bot?.captchaToken ?? undefined, website: bot?.website || undefined,
+      }),
     });
     if (!res.ok) {
+      if (res.status === 429) throw new Error(TOO_MANY_ATTEMPTS);
       const body = await res.json().catch(() => ({}));
       throw new Error(typeof body.detail === "string" ? body.detail : "Could not create your account.");
     }
